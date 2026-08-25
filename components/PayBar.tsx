@@ -43,13 +43,18 @@ export default function PayBar({
   busy,
   hint,
 }: Props) {
-  const priceLabel = quote
-    ? rail === 'usdt'
+  // Until rail detection resolves we do not know what the user will actually be
+  // charged, so the button stays neutral rather than flashing a price it may
+  // immediately replace.
+  const priceLabel = !quote
+    ? '…'
+    : rail === 'usdt'
       ? `$${quote.usd.toFixed(2)} USDT`
       : rail === 'demo'
         ? 'Free (demo)'
-        : `$${quote.usd.toFixed(2)}`
-    : '…'
+        : rail === 'nim'
+          ? `$${quote.usd.toFixed(2)}`
+          : null
 
   return (
     <div className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-ink-900/80 px-4 pt-3 backdrop-blur-2xl">
@@ -92,7 +97,11 @@ export default function PayBar({
             />
           )}
           <span className="relative">
-            {busy ? 'Opening Nimiq Pay…' : `Generate for ${priceLabel}`}
+            {busy
+              ? 'Opening Nimiq Pay…'
+              : priceLabel
+                ? `Generate for ${priceLabel}`
+                : 'Generate'}
           </span>
         </button>
 
