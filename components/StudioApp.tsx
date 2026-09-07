@@ -7,10 +7,12 @@ import PayBar from './PayBar'
 import GeneratingOverlay from './GeneratingOverlay'
 import ResultView from './ResultView'
 import HostBanner from './HostBanner'
+import ExampleShowcase from './ExampleShowcase'
 import { getPreset, type PresetId } from '@/lib/presets'
 import { prepareImage } from '@/lib/client/image'
 import { availableRails, payWithNim, payWithUsdt, PaymentError, type Rail } from '@/lib/client/pay'
 import type { Quote } from '@/lib/rates'
+import type { ExamplePair } from '@/lib/examples'
 
 type Stage = 'compose' | 'working' | 'result'
 
@@ -28,7 +30,7 @@ interface Result {
  * reachable without navigation, which is what keeps first-run under the 60-second
  * bar. Stage only changes once the user has committed to a payment.
  */
-export default function StudioApp() {
+export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] }) {
   const [stage, setStage] = useState<Stage>('compose')
   const [file, setFile] = useState<{ dataUri: string } | null>(null)
   const [presetId, setPresetId] = useState<PresetId | null>(null)
@@ -210,25 +212,34 @@ export default function StudioApp() {
 
   return (
     <>
-      <div className="mx-auto w-full max-w-md space-y-5 px-4 pb-44">
-        <HostBanner rails={rails} />
+      <div className="mx-auto grid w-full max-w-md gap-5 px-4 pb-44 lg:max-w-5xl lg:grid-cols-2 lg:items-start lg:gap-8 lg:pb-28">
+        <div className="min-w-0 space-y-5">
+          <HostBanner rails={rails} />
 
-        <UploadZone
-          previewUrl={file?.dataUri ?? null}
-          onFile={onFile}
-          disabled={stage === 'working'}
-        />
+          <UploadZone
+            previewUrl={file?.dataUri ?? null}
+            onFile={onFile}
+            disabled={stage === 'working'}
+          />
 
-        <PresetPicker
-          selected={presetId}
-          onSelect={setPresetId}
-          disabled={stage === 'working'}
-        />
+          <PresetPicker
+            selected={presetId}
+            onSelect={setPresetId}
+            disabled={stage === 'working'}
+          />
+        </div>
+
+        {/* Only worth showing while they have nothing of their own to look at. */}
+        {!file && examples.length > 0 && (
+          <div className="min-w-0 lg:sticky lg:top-4">
+            <ExampleShowcase examples={examples} />
+          </div>
+        )}
 
         {error && (
           <div
             role="alert"
-            className="glass-sm border-nimiq-red/40 bg-nimiq-red/10 px-4 py-3 text-sm text-rose-200"
+            className="glass-sm border-nimiq-red/40 bg-nimiq-red/10 px-4 py-3 text-sm text-rose-200 lg:col-span-2"
           >
             <p>{error}</p>
             {retryHint && <p className="mt-1 text-xs text-rose-300/80">{retryHint}</p>}

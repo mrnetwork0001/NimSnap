@@ -1,6 +1,11 @@
 import StudioApp from '@/components/StudioApp'
+import { availableExamples } from '@/lib/examples.server'
 
 export default function Home() {
+  // Resolved on the server so the showcase is present in the first paint rather
+  // than popping in after hydration.
+  const examples = availableExamples()
+
   return (
     <main className="pt-safe relative min-h-[100dvh]">
       {/* Faint grid gives the glass panels something to refract. */}
@@ -9,7 +14,7 @@ export default function Home() {
         className="pointer-events-none fixed inset-0 bg-grid-fade bg-grid opacity-[0.35] [mask-image:radial-gradient(60%_50%_at_50%_30%,#000,transparent)]"
       />
 
-      <header className="relative mx-auto mb-5 w-full max-w-md px-4">
+      <header className="relative mx-auto mb-5 w-full max-w-md px-4 lg:max-w-5xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-neon-cyan to-nimiq-blue text-base shadow-neon">
@@ -29,7 +34,7 @@ export default function Home() {
       </header>
 
       <div className="relative">
-        <StudioApp />
+        <StudioApp examples={examples} />
       </div>
     </main>
   )

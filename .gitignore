@@ -9,3 +9,8 @@ build/
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+
+# Generated showcase assets are committed deliberately via
+# scripts/generate-examples.mjs; scratch source photos are not.
+examples-src/*
+!examples-src/README.md
