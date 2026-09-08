@@ -28,7 +28,7 @@ export interface SettlementResult {
 /* ------------------------------------------------------------------ NIM ---- */
 
 /** Nimiq addresses are user-facing with spaces; comparisons must ignore them. */
-function normalizeNimAddress(addr: string): string {
+export function normalizeNimAddress(addr: string): string {
   return addr.replace(/\s+/g, '').toUpperCase()
 }
 
@@ -38,7 +38,7 @@ function normalizeNimAddress(addr: string): string {
  * so we accept either representation rather than reject a genuine payment over
  * a transport detail.
  */
-function dataCarriesOrderId(data: string | null | undefined, orderId: string): boolean {
+export function dataCarriesOrderId(data: string | null | undefined, orderId: string): boolean {
   if (!data) return false
   const haystack = data.toLowerCase()
   if (haystack.includes(orderId)) return true
@@ -151,7 +151,7 @@ export async function verifyNimPayment(order: Order): Promise<SettlementResult> 
 /* ----------------------------------------------------------------- USDT ---- */
 
 /** keccak256("Transfer(address,address,uint256)") */
-const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+export const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
 
 async function polygonRpc<T>(method: string, params: unknown[]): Promise<T> {
   let lastError: unknown
@@ -176,7 +176,7 @@ async function polygonRpc<T>(method: string, params: unknown[]): Promise<T> {
 }
 
 /** A 32-byte log topic holds an address right-aligned; take the low 20 bytes. */
-function topicToAddress(topic: string): string {
+export function topicToAddress(topic: string): string {
   return `0x${topic.slice(-40)}`.toLowerCase()
 }
 
