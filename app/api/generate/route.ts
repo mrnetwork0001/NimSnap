@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { generateImage, GenerationError } from '@/lib/ai'
+import { persistResult } from '@/lib/storage'
 import { getOrder, isExpired, updateOrder, type Order, type PaymentRail } from '@/lib/orders'
 import { getPreset } from '@/lib/presets'
 import { verifyNimPayment, verifyUsdtPayment } from '@/lib/settlement'
@@ -128,14 +129,22 @@ export async function POST(req: Request) {
 
   // ---- 2. Spend the paid credit on the model. -----------------------------
   try {
-    const resultUrl = await generateImage(preset, image, req.signal)
+    const modelUrl = await generateImage(preset, image, req.signal)
+
+    // The model's output URL expires within the hour, so copy the image
+    // somewhere durable before handing it over — the user paid for a file they
+    // can come back to, not a link that rots.
+    const stored = await persistResult(modelUrl, order.id)
+
     await updateOrder(order.id, {
       status: 'complete',
-      resultUrl,
+      resultUrl: stored.url,
       consumedAt: Date.now(),
     })
     return NextResponse.json({
-      resultUrl,
+      resultUrl: stored.url,
+      // Lets the client urge an immediate save when the copy did not stick.
+      durable: stored.durable,
       orderId: order.id,
       rail,
       txHash: settledTxHash,

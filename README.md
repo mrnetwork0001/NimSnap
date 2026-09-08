@@ -209,6 +209,23 @@ Production build: **97.1 kB** first load JS.
 
 ---
 
+## Result storage
+
+Replicate deletes prediction output after an hour — their docs are explicit that
+you must save a copy to keep using it. Handing that URL to the client meant a
+paying user who came back later found a broken image, so finished generations
+are copied somewhere durable before being returned.
+
+The backend is picked from the environment: an S3-compatible bucket (R2, S3, B2)
+when `S3_*` is set, otherwise local disk under `public/results/`. Local disk is
+correct for a container or VM with a volume and **wrong for serverless**, where
+the filesystem is ephemeral — configure S3 there.
+
+If storage fails the API falls back to the model's expiring URL rather than
+failing a generation the user already paid for, returns `durable: false`, and the
+result screen tells them to save it now. Degrading is always better than losing
+someone the thing they bought.
+
 ## Known gaps
 
 Stated plainly rather than left to be discovered:

@@ -11,6 +11,8 @@ interface Props {
   preset: StylePreset
   txHash?: string
   rail?: string
+  /** False when the image sits on a link that expires within the hour. */
+  durable?: boolean
   onStartOver: () => void
   onAnotherStyle: () => void
 }
@@ -30,6 +32,7 @@ export default function ResultView({
   preset,
   txHash,
   rail,
+  durable = true,
   onStartOver,
   onAnotherStyle,
 }: Props) {
@@ -93,6 +96,16 @@ export default function ResultView({
           Share
         </button>
       </div>
+
+      {!durable && (
+        <p
+          role="alert"
+          className="rounded-2xl border border-nimiq-gold/30 bg-nimiq-gold/[0.07] px-4 py-2.5 text-center text-xs text-amber-100/90"
+        >
+          Save this now — we could not store a permanent copy, so this link
+          expires within the hour.
+        </p>
+      )}
 
       {saveError && (
         <p role="alert" className="text-center text-xs text-nimiq-red">

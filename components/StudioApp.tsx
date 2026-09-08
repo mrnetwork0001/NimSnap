@@ -21,6 +21,8 @@ interface Result {
   presetId: PresetId
   txHash?: string
   rail?: string
+  /** False when the image is served from a link that expires within the hour. */
+  durable: boolean
 }
 
 /**
@@ -157,6 +159,7 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
         presetId,
         txHash: genJson.txHash as string | undefined,
         rail: genJson.rail as string | undefined,
+        durable: genJson.durable !== false,
       })
       setStage('result')
     } catch (err) {
@@ -194,6 +197,7 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
             preset={resultPreset}
             txHash={result.txHash}
             rail={result.rail}
+            durable={result.durable}
             onAnotherStyle={() => {
               setResult(null)
               setStage('compose')

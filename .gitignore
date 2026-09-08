@@ -14,3 +14,9 @@ next-env.d.ts
 # scripts/generate-examples.mjs; scratch source photos are not.
 examples-src/*
 !examples-src/README.md
+
+# Locally persisted generation results (the default storage backend)
+public/results/
+# Test scratch
+test-results-tmp/
+test-results-blocked
