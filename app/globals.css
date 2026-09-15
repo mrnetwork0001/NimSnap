@@ -93,3 +93,126 @@
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ---------------------------------------------------------------- hero --- */
+/*
+ * The hero mock animates itself so the page is never static.
+ *
+ * The sweep is the point: rather than decorative motion, the divider walks the
+ * before/after comparison back and forth on a loop, so a visitor sees the actual
+ * product interaction demonstrated without touching anything. The reveal and the
+ * handle share one timing curve and identical keyframe stops, so the "before"
+ * layer always ends exactly under the divider.
+ *
+ * Percentages are mirrored: a divider at P% pairs with inset(0 (100-P)% 0 0).
+ * The range is deliberately weighted to the right so the styled result — the
+ * thing being sold — holds the larger share of the frame throughout the loop.
+ */
+@keyframes ns-sweep {
+  0%,
+  8% {
+    transform: translateX(26%);
+  }
+  46%,
+  56% {
+    transform: translateX(62%);
+  }
+  94%,
+  100% {
+    transform: translateX(26%);
+  }
+}
+
+@keyframes ns-reveal {
+  0%,
+  8% {
+    clip-path: inset(0 74% 0 0);
+  }
+  46%,
+  56% {
+    clip-path: inset(0 38% 0 0);
+  }
+  94%,
+  100% {
+    clip-path: inset(0 74% 0 0);
+  }
+}
+
+/* Slow vertical drift, so the device feels held rather than pinned. */
+@keyframes ns-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* The callout drifts against the phone, which reads as depth. */
+@keyframes ns-float-counter {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(6px);
+  }
+}
+
+/* A highlight passing over the glass, timed to arrive with the sweep. */
+@keyframes ns-sheen {
+  0%,
+  62% {
+    transform: translateX(-120%) skewX(-18deg);
+    opacity: 0;
+  }
+  70% {
+    opacity: 0.55;
+  }
+  88%,
+  100% {
+    transform: translateX(240%) skewX(-18deg);
+    opacity: 0;
+  }
+}
+
+.ns-sweep {
+  animation: ns-sweep 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  will-change: transform;
+}
+.ns-reveal {
+  animation: ns-reveal 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  will-change: clip-path;
+}
+.ns-float {
+  animation: ns-float 7s ease-in-out infinite;
+  will-change: transform;
+}
+.ns-float-counter {
+  animation: ns-float-counter 7s ease-in-out infinite;
+  will-change: transform;
+}
+.ns-sheen {
+  animation: ns-sheen 8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+/*
+ * Motion is decoration here, not information — the mock still reads correctly
+ * frozen — so it is removed entirely rather than merely shortened.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .ns-sweep,
+  .ns-reveal,
+  .ns-float,
+  .ns-float-counter,
+  .ns-sheen {
+    animation: none !important;
+  }
+  .ns-sweep {
+    transform: translateX(50%);
+  }
+  .ns-reveal {
+    clip-path: inset(0 50% 0 0);
+  }
+}
