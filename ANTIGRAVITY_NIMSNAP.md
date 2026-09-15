@@ -20,7 +20,7 @@
    - **AI Engine:** Connect Replicate / Fal AI endpoints for 5-second image transformations.
 
 3. **Submission Requirements Checklist:**
-   - Public GitHub repository with Apache 2.0 or MIT License.
+   - Public GitHub repository under the MIT License (required by the competition rules).
    - Live mobile demo URL.
    - Nimiq wallet address for payouts.
    - Support for USDT or NIM micro-payments.

@@ -25,7 +25,7 @@ Use this skill whenever working on, reviewing, or developing **NimSnap** — the
 - Process AI image transformations in under 5 seconds with instant downloadable result.
 
 ## 🚨 Submission Checklist
-- Public GitHub repo under OSI-approved license (Apache 2.0 / MIT).
+- Public GitHub repo under the MIT License (required by the competition rules).
 - Live demo URL supporting Nimiq Pay.
 - Nimiq wallet for payouts.
 - `README.md` with setup instructions & payment flow documentation.

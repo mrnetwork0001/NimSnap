@@ -38,7 +38,7 @@ export default function Home() {
           <Wordmark />
           <p className="max-w-md text-[0.6875rem] leading-relaxed text-ink-soft">
             NimSnap generates images from photos you upload. Uploads are sent to our AI
-            provider to produce your result. Apache-2.0 open source.
+            provider to produce your result. MIT open source.
           </p>
         </div>
       </footer>

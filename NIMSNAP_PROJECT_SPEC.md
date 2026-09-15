@@ -4,7 +4,7 @@
 > **Target:** 1st Place ($10,000 USDT)  
 > **Submission Deadline:** September 18, 2026  
 > **Framework:** Nimiq Pay Web SDK (`nimiq.dev/mini-apps`) + Next.js 14 + Tailwind CSS + Replicate/Fal AI API  
-> **License:** Apache 2.0 Open Source  
+> **License:** MIT Open Source  
 > **Author:** Ifeanyichukwu Onwo (`mrnetwork`)  
 
 ---
@@ -76,4 +76,4 @@ Instead of forcing creators and small businesses into expensive $20–$50/month 
 ---
 
 ## 📄 License
-Apache 2.0 Open Source
+MIT Open Source

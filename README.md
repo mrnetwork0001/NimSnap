@@ -4,7 +4,7 @@
 > product shot for **$0.10 a shot**, settled instantly in **NIM** or **USDT**.
 > No account. No subscription. No forms.
 
-Built for the **Nimiq Mini Apps Competition (Cycle II)**. Apache-2.0.
+Built for the **Nimiq Mini Apps Competition (Cycle II)**. MIT licensed.
 
 ---
 
@@ -269,4 +269,4 @@ npm run typecheck  # tsc --noEmit
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
