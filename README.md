@@ -17,6 +17,17 @@ the entire argument for building it on Nimiq Pay.
 
 ---
 
+## Routes
+
+| | |
+| --- | --- |
+| `/` | Landing page — what NimSnap is, for anyone arriving from a link |
+| `/app` | The studio itself |
+
+The Nimiq Pay deeplink and the PWA `start_url` both point at `/app`, so someone
+opening the Mini App lands in the tool rather than paying a marketing click to
+reach it. The landing page is for the web.
+
 ## The flow
 
 1. **Open** — the app loads inside Nimiq Pay. No signup, no wallet connect step.
@@ -96,8 +107,8 @@ Every variable is documented in [`.env.example`](.env.example).
 Once deployed over HTTPS, either link opens it inside the host app:
 
 ```
-nimiqpay://miniapp?url=your-app.com
-https://nimpay.app/miniapps/open/your-app.com
+nimiqpay://miniapp?url=your-app.com/app
+https://nimpay.app/miniapps/open/your-app.com/app
 ```
 
 The NIM rail only works inside Nimiq Pay — in a desktop browser there is no

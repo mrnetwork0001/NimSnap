@@ -32,11 +32,11 @@ export default function ExampleShowcase({ examples }: Props) {
   return (
     <section aria-label="Example transformations" className="space-y-3">
       <div className="flex items-baseline justify-between px-1">
-        <h2 className="label-xs">See it first</h2>
-        <span className="text-[0.6875rem] text-slate-500">Drag to compare</span>
+        <h2 className="eyebrow">See it first</h2>
+        <span className="text-[0.6875rem] text-ink-soft">Drag to compare</span>
       </div>
 
-      <div className="glass overflow-hidden p-3">
+      <div className="card overflow-hidden p-3">
         <CompareSlider
           key={pair.presetId}
           beforeSrc={pair.before}
@@ -44,7 +44,7 @@ export default function ExampleShowcase({ examples }: Props) {
           className="aspect-[4/5] w-full"
         />
 
-        <p className="mt-3 px-1 text-center text-xs text-slate-400">
+        <p className="mt-3 px-1 text-center text-xs text-ink-muted">
           {preset ? `${preset.emoji} ${preset.name} — ` : ''}
           {pair.caption}
         </p>
@@ -65,10 +65,10 @@ export default function ExampleShowcase({ examples }: Props) {
                   role="tab"
                   aria-selected={selected}
                   onClick={() => setActive(i)}
-                  className={`rounded-full px-3 py-1.5 text-[0.6875rem] font-semibold transition ${
+                  className={`rounded-full px-3 py-1.5 text-[0.6875rem] font-bold transition ${
                     selected
-                      ? 'bg-white/15 text-white'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-brand-gradient text-white shadow-brand'
+                      : 'text-ink-muted hover:text-ink'
                   }`}
                 >
                   {p?.emoji} {p?.name.split(' ')[0]}
@@ -79,7 +79,7 @@ export default function ExampleShowcase({ examples }: Props) {
         )}
       </div>
 
-      <p className="px-1 text-center text-[0.6875rem] text-slate-500">
+      <p className="px-1 text-center text-[0.6875rem] text-ink-soft">
         Every example is real output from the same $0.10 pipeline.
       </p>
     </section>

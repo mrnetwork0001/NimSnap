@@ -13,7 +13,7 @@ interface Props {
  *
  * Two entry points on purpose: `capture="environment"` opens the camera straight
  * away on mobile, while the plain picker covers the library and desktop. Both
- * feed the same handler. Drag-and-drop is wired up for desktop judges.
+ * feed the same handler. Drag-and-drop is wired up for desktop.
  */
 export default function UploadZone({ previewUrl, onFile, disabled }: Props) {
   const pickerRef = useRef<HTMLInputElement>(null)
@@ -37,86 +37,52 @@ export default function UploadZone({ previewUrl, onFile, disabled }: Props) {
         setDragOver(false)
         if (!disabled) take(e.dataTransfer.files)
       }}
-      className={`glass neon-edge relative overflow-hidden transition ${
-        dragOver ? 'ring-2 ring-neon-cyan' : ''
-      }`}
+      className={`card overflow-hidden transition ${dragOver ? 'ring-2 ring-brand-400' : ''}`}
     >
-      <input
-        ref={pickerRef}
-        type="file"
-        accept="image/*"
-        className="sr-only"
-        onChange={(e) => take(e.target.files)}
-      />
-      <input
-        ref={cameraRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="sr-only"
-        onChange={(e) => take(e.target.files)}
-      />
+      <input ref={pickerRef} type="file" accept="image/*" className="sr-only" onChange={(e) => take(e.target.files)} />
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => take(e.target.files)} />
 
       {previewUrl ? (
         <div className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={previewUrl}
-            alt="Your uploaded photo"
-            className="block max-h-[46vh] w-full object-contain"
-          />
+          <img src={previewUrl} alt="Your uploaded photo" className="block max-h-[46vh] w-full object-contain" />
           <button
             type="button"
             disabled={disabled}
             onClick={() => pickerRef.current?.click()}
-            className="absolute bottom-3 right-3 rounded-full border border-white/20 bg-black/60 px-4 py-2 text-xs font-semibold text-white backdrop-blur-md transition active:scale-95 disabled:opacity-40"
+            className="btn-ghost absolute bottom-3 right-3 px-4 py-2 text-xs"
           >
             Change photo
           </button>
         </div>
       ) : (
         <div className="flex flex-col items-center gap-5 px-6 py-12 text-center">
-          <div className="relative grid h-20 w-20 place-items-center">
-            <span className="absolute inset-0 rounded-full bg-neon-cyan/20 animate-pulse-ring" />
-            <span className="grid h-20 w-20 place-items-center rounded-full border border-white/15 bg-white/5 backdrop-blur-md">
-              <svg viewBox="0 0 24 24" className="h-9 w-9 text-neon-cyan" aria-hidden="true">
-                <path
-                  d="M3 9a2 2 0 012-2h1.6a2 2 0 001.7-.9l.8-1.2A2 2 0 0110.8 4h2.4a2 2 0 011.7.9l.8 1.2a2 2 0 001.7.9H19a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                />
+          <div className="relative grid h-[4.5rem] w-[4.5rem] place-items-center">
+            <span className="absolute inset-0 animate-pulse-ring rounded-full bg-brand-300/35" />
+            <span className="grid h-[4.5rem] w-[4.5rem] place-items-center rounded-full border border-white bg-white/85 shadow-lift">
+              <svg viewBox="0 0 24 24" className="h-8 w-8 text-brand-500" aria-hidden="true">
+                <path d="M3 9a2 2 0 012-2h1.6a2 2 0 001.7-.9l.8-1.2A2 2 0 0110.8 4h2.4a2 2 0 011.7.9l.8 1.2a2 2 0 001.7.9H19a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" fill="none" stroke="currentColor" strokeWidth="1.6" />
                 <circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
               </svg>
             </span>
           </div>
 
           <div className="space-y-1.5">
-            <p className="text-lg font-semibold text-white">Add your photo</p>
-            <p className="text-sm text-slate-400">A selfie, a product, or your pet.</p>
+            <p className="text-lg font-bold tracking-[-0.02em] text-ink">Add your photo</p>
+            <p className="text-sm text-ink-muted">A selfie, a product, or your pet.</p>
           </div>
 
           <div className="flex w-full max-w-xs flex-col gap-2.5">
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => cameraRef.current?.click()}
-              className="w-full rounded-2xl bg-gradient-to-r from-neon-cyan to-nimiq-blue px-5 py-3.5 text-sm font-bold text-ink-900 shadow-neon transition active:scale-[0.98] disabled:opacity-40"
-            >
+            <button type="button" disabled={disabled} onClick={() => cameraRef.current?.click()} className="btn-primary w-full">
               Take a photo
             </button>
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => pickerRef.current?.click()}
-              className="w-full rounded-2xl border border-white/15 bg-white/5 px-5 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition active:scale-[0.98] disabled:opacity-40"
-            >
+            <button type="button" disabled={disabled} onClick={() => pickerRef.current?.click()} className="btn-ghost w-full">
               Choose from library
             </button>
           </div>
 
-          <p className="text-[0.6875rem] text-slate-500">
-            Your photo is processed for this one generation and never stored.
+          <p className="max-w-[17rem] text-[0.6875rem] leading-relaxed text-ink-soft">
+            Your photo is sent to our AI provider to generate this one result.
           </p>
         </div>
       )}

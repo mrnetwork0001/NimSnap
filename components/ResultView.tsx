@@ -20,10 +20,15 @@ interface Props {
 const SHARE_TEXT =
   'Just turned a photo into a studio shot on NimSnap for $0.10 — paid instantly with Nimiq Pay. No subscription, no signup.'
 
-/** Nimiq Pay opens mini apps through this deeplink form. */
+/**
+ * Nimiq Pay opens mini apps through this deeplink form.
+ *
+ * Points at /app rather than the site root so a shared link drops the recipient
+ * straight into the studio instead of the marketing page.
+ */
 function shareUrl(): string {
   if (typeof window === 'undefined') return 'https://nimpay.app/miniapps/open/'
-  return `https://nimpay.app/miniapps/open/${window.location.host}`
+  return `https://nimpay.app/miniapps/open/${window.location.host}/app`
 }
 
 export default function ResultView({
@@ -68,15 +73,15 @@ export default function ResultView({
   return (
     <div className="space-y-5">
       <div className="space-y-1.5 text-center">
-        <p className="label-xs">{preset.emoji} {preset.name}</p>
-        <h2 className="text-2xl font-extrabold text-white">Your shot is ready</h2>
-        <p className="text-sm text-slate-400">Drag the handle to compare.</p>
+        <p className="eyebrow">{preset.emoji} {preset.name}</p>
+        <h2 className="text-[1.75rem] leading-tight text-ink">Your shot is ready</h2>
+        <p className="text-sm text-ink-muted">Drag the handle to compare.</p>
       </div>
 
       <CompareSlider
         beforeSrc={beforeSrc}
         afterSrc={afterSrc}
-        className="aspect-[4/5] w-full shadow-glass"
+        className="aspect-[4/5] w-full"
       />
 
       <div className="grid grid-cols-2 gap-2.5">
@@ -84,14 +89,14 @@ export default function ResultView({
           type="button"
           onClick={save}
           disabled={saving}
-          className="rounded-2xl bg-gradient-to-r from-neon-cyan to-nimiq-blue px-4 py-3.5 text-sm font-bold text-ink-900 shadow-neon transition active:scale-[0.98] disabled:opacity-50"
+          className="btn-primary text-sm"
         >
           {saving ? 'Saving…' : 'Download HD'}
         </button>
         <button
           type="button"
           onClick={share}
-          className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition active:scale-[0.98]"
+          className="btn-ghost text-sm"
         >
           Share
         </button>
@@ -100,7 +105,7 @@ export default function ResultView({
       {!durable && (
         <p
           role="alert"
-          className="rounded-2xl border border-nimiq-gold/30 bg-nimiq-gold/[0.07] px-4 py-2.5 text-center text-xs text-amber-100/90"
+          className="rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-2.5 text-center text-xs text-amber-900"
         >
           Save this now — we could not store a permanent copy, so this link
           expires within the hour.
@@ -108,7 +113,7 @@ export default function ResultView({
       )}
 
       {saveError && (
-        <p role="alert" className="text-center text-xs text-nimiq-red">
+        <p role="alert" className="text-center text-xs text-rose-600">
           {saveError}
         </p>
       )}
@@ -117,21 +122,21 @@ export default function ResultView({
         <button
           type="button"
           onClick={onAnotherStyle}
-          className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-slate-200 transition active:scale-[0.98]"
+          className="btn-ghost py-3 text-sm"
         >
           Try another style
         </button>
         <button
           type="button"
           onClick={onStartOver}
-          className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-slate-200 transition active:scale-[0.98]"
+          className="btn-ghost py-3 text-sm"
         >
           New photo
         </button>
       </div>
 
       {txHash && (
-        <p className="text-center font-mono text-[0.625rem] text-slate-600">
+        <p className="text-center font-mono text-[0.625rem] text-ink-soft">
           Settled in {rail?.toUpperCase()} · {txHash.slice(0, 10)}…{txHash.slice(-6)}
         </p>
       )}

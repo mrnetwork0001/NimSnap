@@ -189,7 +189,7 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
   if (stage === 'result' && result && file) {
     const resultPreset = getPreset(result.presetId)
     return (
-      <div className="mx-auto w-full max-w-md px-4 pb-10">
+      <div className="mx-auto w-full max-w-md px-5 pb-12">
         {resultPreset && (
           <ResultView
             beforeSrc={file.dataUri}
@@ -216,7 +216,7 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
 
   return (
     <>
-      <div className="mx-auto grid w-full max-w-md gap-5 px-4 pb-44 lg:max-w-5xl lg:grid-cols-2 lg:items-start lg:gap-8 lg:pb-28">
+      <div className="mx-auto grid w-full max-w-md gap-5 px-5 pb-44 lg:max-w-5xl lg:grid-cols-2 lg:items-start lg:gap-8 lg:pb-28">
         <div className="min-w-0 space-y-5">
           <HostBanner rails={rails} />
 
@@ -243,10 +243,10 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
         {error && (
           <div
             role="alert"
-            className="glass-sm border-nimiq-red/40 bg-nimiq-red/10 px-4 py-3 text-sm text-rose-200 lg:col-span-2"
+            className="card-sm border-rose-200 bg-rose-50/90 px-4 py-3 text-sm text-rose-900 lg:col-span-2"
           >
             <p>{error}</p>
-            {retryHint && <p className="mt-1 text-xs text-rose-300/80">{retryHint}</p>}
+            {retryHint && <p className="mt-1 text-xs text-rose-700/80">{retryHint}</p>}
           </div>
         )}
       </div>

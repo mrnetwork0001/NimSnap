@@ -5,11 +5,13 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'NimSnap — Pay-Per-Shot AI Photo Studio',
     short_name: 'NimSnap',
     description:
-      'Studio-grade AI portraits, avatars and product shots for $0.10 a shot, paid instantly in NIM or USDT.',
-    start_url: '/',
+      'Studio photos for ten cents a shot, paid instantly in NIM or USDT.',
+    // Straight into the studio: a Mini App user arrives intending to make
+    // something, not to read a landing page.
+    start_url: '/app',
     display: 'standalone',
-    background_color: '#05060B',
-    theme_color: '#05060B',
+    background_color: '#EDF2F7',
+    theme_color: '#EDF2F7',
     orientation: 'portrait',
     icons: [
       { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },

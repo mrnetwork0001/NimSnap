@@ -95,7 +95,7 @@ export default function CompareSlider({ beforeSrc, afterSrc, className = '' }: P
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
-      className={`relative select-none overflow-hidden rounded-3xl bg-ink-800 ${
+      className={`relative select-none overflow-hidden rounded-panel border border-white bg-haze-200 shadow-lift ${
         dragging ? 'cursor-grabbing' : 'cursor-grab'
       } ${className}`}
       style={{ touchAction: 'pan-y' }}
@@ -122,16 +122,16 @@ export default function CompareSlider({ beforeSrc, afterSrc, className = '' }: P
         />
       </div>
 
-      <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-white/85 backdrop-blur-sm">
+      <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-white/85 px-2.5 py-1 text-[0.625rem] font-bold uppercase tracking-[0.12em] text-ink shadow-ghost backdrop-blur-sm">
         After
       </span>
-      <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/55 px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-white/85 backdrop-blur-sm">
+      <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-ink/60 px-2.5 py-1 text-[0.625rem] font-bold uppercase tracking-[0.12em] text-white backdrop-blur-sm">
         Before
       </span>
 
       {/* Divider */}
       <div
-        className="pointer-events-none absolute inset-y-0 w-0.5 bg-gradient-to-b from-neon-cyan via-white to-neon-magenta"
+        className="pointer-events-none absolute inset-y-0 w-[3px] bg-white shadow-[0_0_12px_rgba(66,98,212,0.45)]"
         style={{ left: `${position}%`, transform: 'translateX(-50%)' }}
       />
 
@@ -145,10 +145,10 @@ export default function CompareSlider({ beforeSrc, afterSrc, className = '' }: P
         aria-valuenow={Math.round(position)}
         aria-valuetext={`${Math.round(position)} percent revealed`}
         onKeyDown={onKeyDown}
-        className="absolute top-1/2 grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/40 bg-white/15 shadow-neon backdrop-blur-md transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-neon-cyan active:scale-95"
+        className="absolute top-1/2 grid h-11 w-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white bg-white shadow-card transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 active:scale-95"
         style={{ left: `${position}%` }}
       >
-        <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" aria-hidden="true">
+        <svg viewBox="0 0 24 24" className="h-5 w-5 text-brand-500" aria-hidden="true">
           <path
             d="M9 6L4 12l5 6M15 6l5 6-5 6"
             fill="none"

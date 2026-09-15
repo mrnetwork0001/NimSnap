@@ -5,62 +5,84 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Nimiq brand ramp — keeps us visually native inside Nimiq Pay
-        nimiq: {
-          blue: '#0582CA',
-          lightblue: '#41A38E',
-          gold: '#E9B213',
-          orange: '#FC8702',
-          red: '#D94432',
-          purple: '#5F4B8B',
-        },
+        // Deep navy ink and its muted steps.
         ink: {
-          900: '#05060B',
-          800: '#0A0C16',
-          700: '#111428',
-          600: '#1A1E3A',
+          DEFAULT: '#17213D',
+          muted: '#74819A',
+          soft: '#94A0B5',
         },
-        neon: {
-          cyan: '#22E7FF',
-          magenta: '#FF3DCB',
-          lime: '#B6FF3D',
+        // Primary indigo ramp, taken from the reference button gradient.
+        brand: {
+          50: '#F2F5FD',
+          100: '#E4EAFA',
+          200: '#C7D3F4',
+          300: '#A3B6EC',
+          400: '#5C7DE2',
+          500: '#4262D4',
+          600: '#2948B5',
+          700: '#223C96',
+        },
+        // Soft page grounds.
+        haze: {
+          50: '#F5F9FC',
+          100: '#EEF4F8',
+          200: '#E8F1F7',
+          300: '#E4EEF4',
+          400: '#EDF2F7',
+        },
+        accent: {
+          teal: '#64C4CC',
+          periwinkle: '#9EB2E5',
+          cornflower: '#7F9EE0',
         },
       },
       fontFamily: {
-        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
+        sans: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
+      fontSize: {
+        eyebrow: ['0.656rem', { lineHeight: '1', letterSpacing: '0.3em', fontWeight: '700' }],
+      },
+      borderRadius: {
+        card: '2.875rem', // 46px — the reference card radius
+        panel: '1.75rem',
+      },
+      boxShadow: {
+        // Primary button: lifted, with an inner top highlight and bottom shade.
+        brand:
+          '0 14px 30px -12px rgba(41,72,181,0.55), 0 2px 6px 0 rgba(41,72,181,0.22), inset 0 1px 0 0 rgba(255,255,255,0.45), inset 0 -2px 6px 0 rgba(40,30,160,0.25)',
+        ghost:
+          '0 6px 18px -10px rgba(70,80,180,0.3), inset 0 1px 0 0 rgba(255,255,255,0.9)',
+        card: '0 24px 60px -32px rgba(35,52,112,0.35), 0 2px 8px -4px rgba(35,52,112,0.08)',
+        lift: '0 18px 40px -24px rgba(35,52,112,0.4)',
       },
       backgroundImage: {
-        'grid-fade':
-          'linear-gradient(to bottom, rgba(34,231,255,0.08) 1px, transparent 1px), linear-gradient(to right, rgba(34,231,255,0.08) 1px, transparent 1px)',
-      },
-      backgroundSize: { grid: '32px 32px' },
-      boxShadow: {
-        glass: '0 8px 32px 0 rgba(0,0,0,0.45), inset 0 1px 0 0 rgba(255,255,255,0.06)',
-        neon: '0 0 24px -4px rgba(34,231,255,0.55)',
-        'neon-magenta': '0 0 24px -4px rgba(255,61,203,0.55)',
+        'brand-gradient':
+          'linear-gradient(rgba(255,255,255,0.28), rgba(255,255,255,0) 52%), linear-gradient(100deg, #5C7DE2 0%, #4262D4 48%, #2948B5 100%)',
+        'page-wash':
+          'linear-gradient(165deg, #F5F9FC 0%, #E8F1F7 38%, #EEF4F8 68%, #E4EEF4 100%)',
       },
       keyframes: {
+        blob: {
+          '0%,100%': { transform: 'translate(0,0) scale(1)' },
+          '33%': { transform: 'translate(3%,-4%) scale(1.06)' },
+          '66%': { transform: 'translate(-3%,3%) scale(0.96)' },
+        },
+        'fade-up': {
+          from: { opacity: '0', transform: 'translateY(12px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
         shimmer: { '100%': { transform: 'translateX(100%)' } },
         'pulse-ring': {
-          '0%': { transform: 'scale(0.9)', opacity: '0.7' },
-          '70%': { transform: 'scale(1.25)', opacity: '0' },
+          '0%': { transform: 'scale(0.9)', opacity: '0.6' },
+          '70%': { transform: 'scale(1.3)', opacity: '0' },
           '100%': { opacity: '0' },
-        },
-        float: {
-          '0%,100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-6px)' },
-        },
-        'scan-line': {
-          '0%': { top: '0%' },
-          '100%': { top: '100%' },
         },
       },
       animation: {
-        shimmer: 'shimmer 1.8s infinite',
-        'pulse-ring': 'pulse-ring 1.8s cubic-bezier(0.24,0,0.38,1) infinite',
-        float: 'float 4s ease-in-out infinite',
-        'scan-line': 'scan-line 1.6s linear infinite',
+        blob: 'blob 18s ease-in-out infinite',
+        'fade-up': 'fade-up 0.5s cubic-bezier(0.22,1,0.36,1) both',
+        shimmer: 'shimmer 2.2s infinite',
+        'pulse-ring': 'pulse-ring 2s cubic-bezier(0.24,0,0.38,1) infinite',
       },
     },
   },

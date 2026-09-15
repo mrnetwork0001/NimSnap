@@ -14,11 +14,7 @@ interface Props {
   hint: string | null
 }
 
-const RAIL_LABEL: Record<Rail, string> = {
-  nim: 'NIM',
-  usdt: 'USDT',
-  demo: 'Demo',
-}
+const RAIL_LABEL: Record<Rail, string> = { nim: 'NIM', usdt: 'USDT', demo: 'Demo' }
 
 function formatNim(nim: number): string {
   if (nim >= 1000) return `${Math.round(nim).toLocaleString()} NIM`
@@ -29,23 +25,12 @@ function formatNim(nim: number): string {
  * Sticky checkout bar.
  *
  * Anchored to the bottom of the viewport inside the safe area so the primary
- * action is always under the user's thumb — they never have to scroll to pay.
- * The rail selector only appears when the device genuinely supports more than
- * one, so the common case stays a single tap.
+ * action is always under the user's thumb. The rail selector only appears when
+ * the device genuinely supports more than one.
  */
-export default function PayBar({
-  quote,
-  rails,
-  rail,
-  onRailChange,
-  onPay,
-  ready,
-  busy,
-  hint,
-}: Props) {
-  // Until rail detection resolves we do not know what the user will actually be
-  // charged, so the button stays neutral rather than flashing a price it may
-  // immediately replace.
+export default function PayBar({ quote, rails, rail, onRailChange, onPay, ready, busy, hint }: Props) {
+  // Until rail detection resolves we do not know what the user will be charged,
+  // so the button stays neutral rather than flashing a price it may replace.
   const priceLabel = !quote
     ? '…'
     : rail === 'usdt'
@@ -57,14 +42,10 @@ export default function PayBar({
           : null
 
   return (
-    <div className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-ink-900/80 px-4 pt-3 backdrop-blur-2xl">
-      <div className="mx-auto w-full max-w-md space-y-2.5">
+    <div className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-white/70 bg-haze-400/80 px-5 pt-3 backdrop-blur-xl">
+      <div className="mx-auto w-full max-w-md space-y-2.5 lg:max-w-lg">
         {rails.length > 1 && (
-          <div
-            role="radiogroup"
-            aria-label="Payment method"
-            className="flex gap-1.5 rounded-full border border-white/10 bg-white/5 p-1"
-          >
+          <div role="radiogroup" aria-label="Payment method" className="flex gap-1 rounded-full border border-white bg-white/70 p-1 shadow-ghost">
             {rails.map((r) => (
               <button
                 key={r}
@@ -73,8 +54,8 @@ export default function PayBar({
                 aria-checked={rail === r}
                 disabled={busy}
                 onClick={() => onRailChange(r)}
-                className={`flex-1 rounded-full px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
-                  rail === r ? 'bg-white/15 text-white' : 'text-slate-400'
+                className={`flex-1 rounded-full px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${
+                  rail === r ? 'bg-brand-gradient text-white shadow-brand' : 'text-ink-muted hover:text-ink'
                 }`}
               >
                 {RAIL_LABEL[r]}
@@ -83,31 +64,18 @@ export default function PayBar({
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={onPay}
-          disabled={!ready || busy}
-          className="relative w-full overflow-hidden rounded-2xl bg-gradient-to-r from-neon-cyan via-nimiq-blue to-neon-magenta px-5 py-4 text-base font-extrabold text-ink-900 shadow-neon transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-        >
-          {/* Shimmer sweep to signal the button is live and waiting. */}
+        <button type="button" onClick={onPay} disabled={!ready || busy} className="btn-primary relative w-full overflow-hidden py-4 text-base">
           {ready && !busy && (
-            <span
-              aria-hidden="true"
-              className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/35 to-transparent"
-            />
+            <span aria-hidden="true" className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/30 to-transparent" />
           )}
           <span className="relative">
-            {busy
-              ? 'Opening Nimiq Pay…'
-              : priceLabel
-                ? `Generate for ${priceLabel}`
-                : 'Generate'}
+            {busy ? 'Opening Nimiq Pay…' : priceLabel ? `Generate for ${priceLabel}` : 'Generate'}
           </span>
         </button>
 
-        <p className="text-center text-[0.6875rem] leading-relaxed text-slate-500">
+        <p className="text-center text-[0.6875rem] leading-relaxed text-ink-soft">
           {hint ??
-            (quote && rail !== 'demo' && rail !== 'usdt'
+            (quote && rail === 'nim'
               ? `≈ ${formatNim(quote.nim)} · settles instantly · no subscription`
               : 'Pay per shot · no subscription · no account')}
         </p>

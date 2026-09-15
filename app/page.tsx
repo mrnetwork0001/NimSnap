@@ -1,41 +1,47 @@
-import StudioApp from '@/components/StudioApp'
-import { availableExamples } from '@/lib/examples.server'
+import Link from 'next/link'
+import PageBackdrop from '@/components/PageBackdrop'
+import Wordmark from '@/components/Wordmark'
+import Hero from '@/components/landing/Hero'
+import { ClosingCta, Features, HowItWorks, PaymentStory, Styles } from '@/components/landing/Sections'
 
 export default function Home() {
-  // Resolved on the server so the showcase is present in the first paint rather
-  // than popping in after hydration.
-  const examples = availableExamples()
-
   return (
-    <main className="pt-safe relative min-h-[100dvh]">
-      {/* Faint grid gives the glass panels something to refract. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 bg-grid-fade bg-grid opacity-[0.35] [mask-image:radial-gradient(60%_50%_at_50%_30%,#000,transparent)]"
-      />
+    <>
+      <PageBackdrop />
 
-      <header className="relative mx-auto mb-5 w-full max-w-md px-4 lg:max-w-5xl">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-neon-cyan to-nimiq-blue text-base shadow-neon">
-              📸
-            </span>
-            <div className="leading-tight">
-              <h1 className="text-base font-extrabold tracking-tight text-white">NimSnap</h1>
-              <p className="text-[0.625rem] uppercase tracking-[0.14em] text-slate-500">
-                Pay-per-shot studio
-              </p>
-            </div>
-          </div>
-          <span className="rounded-full border border-neon-cyan/30 bg-neon-cyan/10 px-3 py-1 font-mono text-[0.6875rem] font-bold text-neon-cyan">
-            $0.10 / shot
-          </span>
+      <header className="pt-safe sticky top-0 z-40 border-b border-white/60 bg-haze-400/70 backdrop-blur-xl">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-3">
+          <Wordmark />
+          <nav className="hidden items-center gap-7 text-[0.8125rem] font-semibold text-ink-muted md:flex">
+            <Link href="#how" className="transition hover:text-ink">How it works</Link>
+            <Link href="#styles" className="transition hover:text-ink">Styles</Link>
+          </nav>
+          <Link href="/app" className="btn-primary px-5 py-2.5 text-[0.8125rem]">
+            Open the studio
+          </Link>
         </div>
       </header>
 
-      <div className="relative">
-        <StudioApp examples={examples} />
-      </div>
-    </main>
+      <main>
+        <Hero />
+        <Features />
+        <div id="styles" className="scroll-mt-24">
+          <Styles />
+        </div>
+        <HowItWorks />
+        <PaymentStory />
+        <ClosingCta />
+      </main>
+
+      <footer className="mx-auto w-full max-w-6xl px-6 pb-10">
+        <div className="flex flex-col items-center justify-between gap-3 border-t border-white/70 pt-6 text-center sm:flex-row sm:text-left">
+          <Wordmark />
+          <p className="max-w-md text-[0.6875rem] leading-relaxed text-ink-soft">
+            NimSnap generates images from photos you upload. Uploads are sent to our AI
+            provider to produce your result. Apache-2.0 open source.
+          </p>
+        </div>
+      </footer>
+    </>
   )
 }

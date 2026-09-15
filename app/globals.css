@@ -10,21 +10,14 @@
 
   html,
   body {
-    @apply bg-ink-900 text-slate-100 antialiased;
-    /* The host webview should never rubber-band the whole document. */
+    @apply bg-haze-400 text-ink antialiased;
     overscroll-behavior-y: none;
   }
 
   body {
-    background-image:
-      radial-gradient(60rem 40rem at 50% -10%, rgba(34, 231, 255, 0.14), transparent 60%),
-      radial-gradient(45rem 35rem at 90% 15%, rgba(255, 61, 203, 0.12), transparent 60%),
-      radial-gradient(40rem 30rem at 5% 85%, rgba(5, 130, 202, 0.14), transparent 60%);
-    background-attachment: fixed;
     min-height: 100dvh;
   }
 
-  /* Touch targets should not flash a grey box on tap in the Nimiq Pay webview. */
   button,
   a,
   label {
@@ -32,40 +25,46 @@
   }
 
   ::selection {
-    @apply bg-neon-cyan/30 text-white;
+    @apply bg-brand-400/25 text-ink;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-semibold tracking-[-0.035em];
   }
 }
 
 @layer components {
-  .glass {
-    @apply rounded-3xl border border-white/10 bg-white/[0.045] shadow-glass backdrop-blur-xl;
+  /* The soft floating panel the whole design is built from. */
+  .card {
+    @apply rounded-card border border-white bg-white/70 shadow-card backdrop-blur-xl;
   }
 
-  .glass-sm {
-    @apply rounded-2xl border border-white/10 bg-white/[0.05] backdrop-blur-lg;
+  .card-sm {
+    @apply rounded-panel border border-white bg-white/65 shadow-lift backdrop-blur-lg;
   }
 
-  /* Gradient hairline border that reads as "premium" without extra markup. */
-  .neon-edge {
-    position: relative;
-  }
-  .neon-edge::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(135deg, rgba(34, 231, 255, 0.8), rgba(255, 61, 203, 0.55), transparent 65%);
-    -webkit-mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-brand-gradient
+      px-7 py-3.5 font-semibold text-white shadow-brand transition
+      active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none;
   }
 
-  .label-xs {
-    @apply text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-slate-400;
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/85
+      bg-white/55 px-6 py-3.5 font-semibold text-ink shadow-ghost transition
+      active:scale-[0.985] disabled:cursor-not-allowed disabled:opacity-45;
+  }
+
+  .eyebrow {
+    @apply text-eyebrow uppercase text-ink-muted;
+  }
+
+  /* Small rounded icon chip used on feature and step cards. */
+  .chip {
+    @apply grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white
+      bg-white/80 text-brand-500 shadow-ghost;
   }
 }
 
