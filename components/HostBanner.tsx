@@ -5,6 +5,8 @@ import type { Rail } from '@/lib/client/pay'
 
 interface Props {
   rails: Rail[]
+  /** Whether there is actually a showcase below to point at. */
+  hasExamples?: boolean
 }
 
 /**
@@ -13,7 +15,7 @@ interface Props {
  * Renders nothing when the app is running inside Nimiq Pay with a real rail
  * available - that is the intended experience and needs no explanation.
  */
-export default function HostBanner({ rails }: Props) {
+export default function HostBanner({ rails, hasExamples = false }: Props) {
   const hasRealRail = rails.some((r) => r !== 'demo')
 
   if (hasRealRail && !DEMO_MODE) return null
@@ -29,8 +31,9 @@ export default function HostBanner({ rails }: Props) {
         </span>
         <p className="text-xs leading-relaxed text-ink-muted">
           <span className="font-bold text-ink">Open NimSnap in Nimiq Pay</span> to pay per
-          shot. In a normal browser there is no wallet to settle the payment - but you can
-          still see what it makes below.
+          shot. A normal browser has no wallet to settle the payment
+          {/* Only promise a showcase when one is actually rendered below. */}
+          {hasExamples ? ', but you can still see what it makes below.' : '.'}
         </p>
       </div>
     )

@@ -343,7 +343,7 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
     <>
       <div className="mx-auto grid w-full max-w-md gap-5 px-2.5 pb-44 lg:max-w-5xl lg:grid-cols-2 lg:items-start lg:gap-8 lg:pb-28">
         <div className="min-w-0 space-y-5">
-          <HostBanner rails={rails} />
+          <HostBanner rails={rails} hasExamples={examples.length > 0} />
 
           {pendingCredit && (
             <CreditBanner
