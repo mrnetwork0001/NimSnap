@@ -1,12 +1,16 @@
 # 📸 NimSnap - Pay-Per-Shot AI Photo Studio
 
-> A Nimiq Mini App that turns any photo into a studio-grade portrait, avatar or
-> product shot for **$0.10 a shot**, settled instantly in **NIM** or **USDT**.
+> A Nimiq Mini App that turns any photo into a studio-grade portrait, avatar,
+> product shot or restored print for **$0.10 a shot**, paid in **NIM**.
 > No account. No subscription. No forms.
 
-**Live at [nimsnap.xyz](https://nimsnap.xyz)** - open it as a Mini App with
-`https://nimpay.app/miniapps/open/nimsnap.xyz/app`, or pay from any browser with
-a Nimiq Wallet.
+**Live at [nimsnap.xyz](https://nimsnap.xyz)** - pay from any browser with a
+Nimiq Wallet, or open it inside Nimiq Pay on a phone.
+
+> **Mini App deeplink.** `https://nimpay.app/miniapps/open/nimsnap.xyz/app`
+> resolves only once an app is listed in
+> [nimiq/awesome](https://github.com/nimiq/awesome). NimSnap's catalog entry is
+> pending, so until it merges the browser path above is the way in.
 
 Built for the **Nimiq Mini Apps Competition (Cycle II)**. MIT licensed.
 
@@ -34,12 +38,15 @@ reach it. The landing page is for the web.
 
 ## The flow
 
-1. **Open** - the app loads inside Nimiq Pay. No signup, no wallet connect step.
+1. **Open** - in Nimiq Pay on a phone, or any browser. No signup, no wallet
+   connect step: inside Nimiq Pay the wallet is already there, and in a browser
+   Nimiq's hosted checkout handles it.
 2. **Upload** - camera or library. The photo is downscaled and compressed on-device.
 3. **Pick a style** - eight presets: Executive Portrait, Cyberpunk Hero,
    E-Commerce Studio, Anime Portrait, Restore & Enhance, Passport Photo,
    Colour Sweep, Pet Portrait.
-4. **Tap "Generate for $0.10"** - Nimiq Pay raises its native confirmation sheet.
+4. **Tap "Generate for $0.10"** - Nimiq Pay raises its native confirmation sheet
+   on a phone; in a browser, Nimiq's hosted checkout opens instead.
 5. **Compare and save** - drag the before/after slider, download HD, share.
 
 ---
@@ -192,12 +199,74 @@ Server (Node runtime)
 
 **Pricing is live.** The shot is denominated in dollars but paid in Lunas, so the
 server quotes against a real NIM/USD feed at order time and holds the user to that
-quote. At the time of writing $0.10 ≈ 265 NIM ≈ 26,565,365 Lunas.
+quote. At the time of writing $0.10 ≈ 259 NIM ≈ 25,869,875 Lunas, and it moves with
+the market.
 
 **Engine choice.** FLUX.1 Kontext is the default because it's an *instruction*
 editor - it rewrites the photo in place rather than re-synthesising it, which is
 what keeps a headshot recognisably the same person. SDXL img2img is available via
 `REPLICATE_ENGINE=sdxl`. Presets carry prompts for both.
+
+---
+
+## The eight styles
+
+Each preset is a complete instruction set, tuned for its subject rather than
+shared across all of them. `strength` controls how far the result may drift from
+the original, and it differs on purpose.
+
+| Style | For | Drift | What it must preserve |
+| --- | --- | --- | --- |
+| Executive Portrait | Selfies | 0.42 | The person, recognisably |
+| Cyberpunk Hero | Avatars | 0.58 | Face and identity, reinterpreted |
+| E-Commerce Studio | Products | 0.50 | Shape, colour, label |
+| Anime Portrait | Selfies, pets | 0.62 | Pose and features, illustrated |
+| Restore & Enhance | Old prints | **0.28** | Everything except the damage |
+| Passport Photo | ID photos | **0.34** | The face, exactly |
+| Colour Sweep | Products | 0.52 | The product; only the backdrop changes |
+| Pet Portrait | Dogs, cats | 0.40 | The specific animal's markings |
+
+Restore and Passport sit lowest because they are the two jobs where the subject
+must not change at all. A restored photo that invents a different person, or an
+ID photo that quietly slims a face, is worse than useless - so their instructions
+enumerate what survives rather than saying "keep everything", which edit models
+honour far less reliably.
+
+Adding one is a single entry in `lib/presets.ts` plus an icon in
+`components/PresetIcon.tsx`; TypeScript will refuse to build if you forget the
+icon.
+
+---
+
+## When something goes wrong
+
+Most of the work in this codebase is here rather than in the happy path, because
+the happy path involves somebody's money.
+
+**The payment survives the app dying.** A paid-but-unredeemed order is written to
+the device the instant the money moves, and recovered on the next load: if the
+generation finished, the image comes back; if it did not, the shot is offered
+again at no charge. Recovery is authorised by a claim token that never leaves the
+paying client - the order id cannot authorise it, because that id is published
+on chain.
+
+**A failed generation does not burn the payment.** The order stays redeemable,
+and the client keeps the credit. Retrying costs nothing.
+
+**A retry cannot be sold the wrong thing.** The server generates from the order's
+own preset, so a retry after switching styles delivers - and labels - the style
+that was actually paid for.
+
+**Nothing hangs forever.** The generate request carries a 120-second ceiling, and
+a "Stop waiting" button appears after twelve seconds. Cancelling never forfeits
+the payment.
+
+**The app stops selling when it cannot deliver.** No model credentials, or a 401
+or 402 from the model, and `/api/orders` returns 503 rather than taking money for
+a shot that cannot be generated. It re-arms on its own once the account recovers.
+
+**A busy model is a queue, not a failure.** Replicate throttles low-credit
+accounts hard; a 429 waits the interval it names and retries once.
 
 ---
 
@@ -270,25 +339,33 @@ GET  /results/<key>.jpg                -> 200 image/jpeg, served after boot
 GET  /results/../../package.json       -> 404
 ```
 
-93 tests. Production build: 112 kB first load on the studio route.
+**94 tests**, including a regression test for the expiry ordering that once let a
+late payment be rejected after the money had left the wallet. Production build:
+112 kB first load on the studio route.
 
 ## Known gaps
 
 Stated plainly rather than left to be discovered.
 
+- **The catalog entry is not merged yet.** Until NimSnap appears in
+  [nimiq/awesome](https://github.com/nimiq/awesome), the `nimpay.app` deeplink
+  returns "This app isn't in the directory" and it cannot be opened as a Mini
+  App. The browser path works regardless.
 - **Replicate throttles low-credit accounts.** Below $5 of credit the limit drops
   to six predictions a minute with a burst of one, so two users arriving together
-  is enough to trip it. A 429 is now treated as a queue rather than a failure -
-  the request waits the interval Replicate names and tries once more - but under
+  is enough to trip it. A 429 is treated as a queue and retried once, but under
   real load the account needs headroom.
-- **No USDT treasury is configured**, so that rail is hidden. NIM alone satisfies
-  the competition's integration requirement.
+- **No USDT treasury is configured**, so that rail is hidden. The code path is
+  built and tested; it needs only a Polygon address.
 - **The showcase has no assets.** `scripts/generate-examples.mjs` produces them
-  from photos you own; until it is run, the section does not render at all rather
+  from photos you own; until it is run the section does not render at all, rather
   than showing a placeholder.
 - **Order storage is in memory.** Correct for this deployment, which is a single
-  long-lived server. On serverless it must move to Upstash or a paid order will
+  long-lived server. On serverless it must move to Upstash, or a paid order will
   404 between invocations.
+- **Restoration cannot recover what is not there.** Where a face is genuinely
+  unresolvable the model must guess, and a guess is a plausible reconstruction,
+  not the person. Uploads are downscaled to 1280px, so this is not upscaling.
 
 ## Scripts
 
