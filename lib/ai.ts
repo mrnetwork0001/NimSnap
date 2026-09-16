@@ -46,9 +46,37 @@ export class GenerationError extends Error {
   }
 }
 
+/**
+ * Circuit breaker for the image engine.
+ *
+ * A credential or billing fault does not fail once - it fails for every request
+ * until somebody intervenes. Without this, an account that runs out of credit
+ * mid-session keeps happily taking ten cents from each new user and delivering
+ * nothing, which is the single worst outcome for both them and us.
+ *
+ * So the first 401/402 trips the breaker, /api/orders stops selling, and the
+ * app reports itself unavailable rather than insolvent. It re-arms on its own,
+ * so topping the account up restores service without a deploy or a restart.
+ */
+const BREAKER_COOLDOWN_MS = 5 * 60 * 1000
+
+const globalForBreaker = globalThis as unknown as { __nimsnapEngineDownUntil?: number }
+
+export function tripEngineBreaker(reason: string): void {
+  globalForBreaker.__nimsnapEngineDownUntil = Date.now() + BREAKER_COOLDOWN_MS
+  console.error(
+    `[nimsnap] engine breaker tripped (${reason}). Not selling shots for ${BREAKER_COOLDOWN_MS / 1000}s.`,
+  )
+}
+
+export function isEngineAvailable(): boolean {
+  const until = globalForBreaker.__nimsnapEngineDownUntil ?? 0
+  return Date.now() >= until
+}
+
 /** True when the server is configured well enough to actually deliver a shot. */
 export function isEngineConfigured(): boolean {
-  return Boolean(process.env.REPLICATE_API_TOKEN)
+  return Boolean(process.env.REPLICATE_API_TOKEN) && isEngineAvailable()
 }
 
 function token(): string {
@@ -142,9 +170,11 @@ export async function generateImage(
     // 401 and 402 are configuration and billing problems. Retrying is
     // guaranteed to fail the same way, so they are marked terminal.
     if (createRes.status === 401) {
+      tripEngineBreaker('401 - credentials rejected')
       throw new GenerationError('The image service rejected our credentials.', false)
     }
     if (createRes.status === 402) {
+      tripEngineBreaker('402 - account out of credit')
       throw new GenerationError('The image service is out of credit.', false)
     }
     if (createRes.status === 422 || createRes.status === 400) {

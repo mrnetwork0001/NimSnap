@@ -118,3 +118,31 @@ describe('quoteShot', () => {
     expect(q.lunas).toBeGreaterThan(0)
   })
 })
+
+describe('engine circuit breaker', () => {
+  test('a billing failure stops the app selling shots it cannot deliver', async () => {
+    vi.resetModules()
+    process.env.REPLICATE_API_TOKEN = 'r8_test'
+    const { isEngineConfigured, tripEngineBreaker } = await import('@/lib/ai')
+
+    expect(isEngineConfigured()).toBe(true)
+    // Replicate returned 402: the account is out of credit.
+    tripEngineBreaker('402 - test')
+    // Without this, every subsequent user would pay and receive nothing.
+    expect(isEngineConfigured()).toBe(false)
+  })
+
+  test('it re-arms on its own, so topping up restores service without a deploy', async () => {
+    vi.resetModules()
+    process.env.REPLICATE_API_TOKEN = 'r8_test'
+    const { isEngineConfigured, tripEngineBreaker } = await import('@/lib/ai')
+    tripEngineBreaker('402 - test')
+    expect(isEngineConfigured()).toBe(false)
+
+    vi.useFakeTimers()
+    vi.advanceTimersByTime(6 * 60 * 1000)
+    const recovered = isEngineConfigured()
+    vi.useRealTimers()
+    expect(recovered).toBe(true)
+  })
+})
