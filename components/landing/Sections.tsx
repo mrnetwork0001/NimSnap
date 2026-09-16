@@ -7,25 +7,25 @@ import PresetIcon from '@/components/PresetIcon'
 const FEATURES = [
   {
     title: 'Eight studio styles',
-    body: 'Headshots, avatars, product shots, restoration, passport photos and more. Each one tuned for the subject it is meant for.',
+    body: 'Headshots, avatars, product shots, restoration, passport photos, pet portraits. Each tuned for its subject.',
     icon: (
       <path d="M4 7a2 2 0 012-2h2l1-1.5h6L20 5h-2a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7z" fill="none" stroke="currentColor" strokeWidth="1.7" />
     ),
   },
   {
     title: 'Ten cents a shot',
-    body: 'Micro-payments that only work on a rail where a ten-cent charge is not eaten by fees.',
+    body: 'Priced in dollars, charged in NIM at the live rate. No subscription, and no minimum to buy.',
     icon: <path d="M12 3v18M8 7.5h6a2.5 2.5 0 010 5H9a2.5 2.5 0 000 5h7" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />,
   },
   {
-    title: 'No account, ever',
-    body: 'No email, no password, no forms. Open it, upload, pay, download. Nothing to sign up for.',
-    icon: <path d="M12 13a4 4 0 100-8 4 4 0 000 8zM5 20a7 7 0 0114 0" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />,
+    title: 'Verified before you get charged',
+    body: 'The server reads the chain itself before the model runs, and links you the transaction afterwards.',
+    icon: <path d="M12 3l7 3v6c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6l7-3z M9 12l2 2 4-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />,
   },
   {
-    title: 'Paid work, kept',
-    body: 'Finished shots are stored durably, so the image you bought is still there tomorrow.',
-    icon: <path d="M5 5h11l3 3v11a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zM8 5v5h7M8 19v-5h8v5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />,
+    title: 'No account, ever',
+    body: 'No email, no password, no forms. Pay from Nimiq Pay on your phone or a Nimiq Wallet in any browser.',
+    icon: <path d="M12 13a4 4 0 100-8 4 4 0 000 8zM5 20a7 7 0 0114 0" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />,
   },
 ]
 
@@ -93,8 +93,8 @@ export function Styles() {
 const STEPS = [
   { n: '01', title: 'Upload', body: 'A selfie, a product, your pet. The photo is resized on your device before it is sent.' },
   { n: '02', title: 'Pick a style', body: 'Eight presets, each with prompts tuned for the subject it is meant for.' },
-  { n: '03', title: 'Pay $0.10', body: 'Nimiq Pay raises its own confirmation sheet. One tap, settled in about a second.' },
-  { n: '04', title: 'Compare and keep', body: 'Drag the before/after slider, then download in HD. The file is stored, not rented.' },
+  { n: '03', title: 'Pay $0.10', body: 'Nimiq Pay raises its own sheet on mobile; in a browser, Nimiq\u2019s hosted checkout does. One tap either way.' },
+  { n: '04', title: 'Compare and keep', body: 'Drag the before/after slider, then save it. Your result is stored, not a link that expires.' },
 ]
 
 export function HowItWorks() {
@@ -135,10 +135,11 @@ export function PaymentStory() {
             When the app says a payment landed, the server checks the chain itself. It
             looks for a transaction that reached our address, carries this order&rsquo;s id,
             and moved at least the quoted amount - before a single token is spent on the
-            model.
+            model. Afterwards it hands you the transaction, so you can confirm all of that
+            on a public block explorer rather than take our word for it.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
-            {['Verified on-chain', 'Single-use orders', 'Free retries'].map((t) => (
+            {['Verified on-chain', 'Single-use orders', 'Free retries', 'Linked receipt'].map((t) => (
               <span key={t} className="rounded-full border border-white bg-white/70 px-3 py-1.5 text-[0.6875rem] font-semibold text-brand-600 shadow-ghost">
                 {t}
               </span>
@@ -153,6 +154,7 @@ export function PaymentStory() {
               ['2', 'Nimiq Pay confirms', 'settles in about a second'],
               ['3', 'Chain verified', 'server reads it independently'],
               ['4', 'Shot generated', 'only now does the model run'],
+              ['5', 'Receipt linked', 'check it on the block explorer'],
             ].map(([n, title, sub]) => (
               <div key={n} className="flex items-start gap-3 rounded-2xl border border-white bg-white/70 px-4 py-3 shadow-ghost">
                 <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand-gradient text-[0.625rem] font-bold text-white">

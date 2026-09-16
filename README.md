@@ -4,6 +4,10 @@
 > product shot for **$0.10 a shot**, settled instantly in **NIM** or **USDT**.
 > No account. No subscription. No forms.
 
+**Live at [nimsnap.xyz](https://nimsnap.xyz)** - open it as a Mini App with
+`https://nimpay.app/miniapps/open/nimsnap.xyz/app`, or pay from any browser with
+a Nimiq Wallet.
+
 Built for the **Nimiq Mini Apps Competition (Cycle II)**. MIT licensed.
 
 ---
@@ -32,7 +36,9 @@ reach it. The landing page is for the web.
 
 1. **Open** - the app loads inside Nimiq Pay. No signup, no wallet connect step.
 2. **Upload** - camera or library. The photo is downscaled and compressed on-device.
-3. **Pick a style** - Executive Portrait, Cyberpunk Hero, E-Commerce Studio, Anime.
+3. **Pick a style** - eight presets: Executive Portrait, Cyberpunk Hero,
+   E-Commerce Studio, Anime Portrait, Restore & Enhance, Passport Photo,
+   Colour Sweep, Pet Portrait.
 4. **Tap "Generate for $0.10"** - Nimiq Pay raises its native confirmation sheet.
 5. **Compare and save** - drag the before/after slider, download HD, share.
 
@@ -63,6 +69,17 @@ Nimiq Pay renders its own confirm sheet and signs. The provider returns a
 **serialized transaction**, not a hash - which is exactly why the order id is
 planted in the transaction's `data` field. That memo is the join key the server
 uses to recognise this payment later.
+
+**Hub rail (any browser).** Nimiq Pay is a phone app, so a desktop visitor has no
+injected provider. Nimiq's own hosted checkout covers them: `@nimiq/hub-api`
+opens a popup, the user approves with their wallet at wallet.nimiq.com, and it
+returns a signed transaction. Its `extraData` field carries the order id exactly
+as the Mini App rail's `data` does, so on chain the two are indistinguishable and
+settlement verification is identical - one code path serves both.
+
+Because the popup needs live user activation, the order and the Hub bundle are
+both prepared as soon as a photo and style are chosen; minting the order inside
+the click handler would spend the activation and get the popup blocked.
 
 **USDT rail.** Nimiq Pay also exposes `window.ethereum`, so USDT on Polygon is a
 plain ERC-20 `transfer` - no extra setup, no bridge.
@@ -154,16 +171,23 @@ Nimiq Pay host webview
   ▼
 Next.js 14 App Router (client)
   ├── lib/client/image.ts   downscale + re-encode on-device before upload
-  ├── lib/client/pay.ts     NIM via @nimiq/mini-app-sdk, USDT via window.ethereum
+  ├── lib/client/pay.ts     NIM via @nimiq/mini-app-sdk (inside Nimiq Pay),
+  │                         NIM via @nimiq/hub-api (any browser),
+  │                         USDT via window.ethereum
+  ├── lib/client/credit.ts  keeps a paid-but-unredeemed order on the device
   │
-  ▼  POST /api/orders   → server mints a single-use order id + price quote
-  ▼  POST /api/generate → verify on chain, THEN transform
+  ▼  POST /api/orders      → mints a single-use order id, quote and claim token
+  ▼  POST /api/generate    → verify on chain, THEN transform
+  ▼  GET  /api/orders/[id] → recover a paid order (claim token required)
+  ▼  GET  /results/[key]   → serve a stored result
   │
 Server (Node runtime)
   ├── lib/rates.ts       live NIM/USD (CoinGecko, cached, stale-tolerant)
   ├── lib/orders.ts      order store - in-memory, or Upstash Redis if configured
   ├── lib/settlement.ts  independent chain verification (Nimiq indexer / Polygon RPC)
-  └── lib/ai.ts          Replicate - FLUX.1 Kontext (default) or SDXL img2img
+  ├── lib/ai.ts          Replicate - FLUX.1 Kontext (default) or SDXL img2img,
+  │                      with a breaker that stops sales when the engine is dead
+  └── lib/storage.ts     durable results - S3-compatible, or local disk
 ```
 
 **Pricing is live.** The shot is denominated in dollars but paid in Lunas, so the
@@ -191,6 +215,10 @@ The trust boundary is `POST /api/generate`. A client that lies gets nothing.
 | Pay the wrong token | USDT verification requires a `Transfer` log from the real USDT contract |
 | Free generations via demo rail | `rail: "demo"` is rejected unless the deployment enables it |
 | Hammer the model endpoint | Per-IP rate limits on quote, order and generate |
+| Replay one USDT transfer across many orders | Transaction hashes are claimed atomically and are single-use |
+| Enumerate other people's photos | Results are named with 16 random bytes, never the on-chain order id |
+| Recover someone else's order | Recovery needs a claim token that never leaves the paying client |
+| Keep selling when the engine is dead | A 401/402 from the model trips a breaker and `/api/orders` stops selling |
 
 Two deliberate choices worth calling out:
 
@@ -203,68 +231,64 @@ Two deliberate choices worth calling out:
 
 ## Verified behaviour
 
-Checked against the running build:
+Checked against the running deployment, not asserted.
+
+**A real payment settled on Nimiq mainnet.** The order id is planted in the
+transaction's data field, and the indexer returns that field hex-encoded:
 
 ```
-GET  /api/quote                        → live quote, 265.65 NIM for $0.10
-POST /api/orders  {presetId:"nope"}    → 400  Unknown style preset
-POST /api/generate unknown order       → 404  Unknown order
-POST /api/generate "../etc/passwd"     → 404  (id regex rejects it)
-POST /api/generate non-image payload   → 400  Missing or unsupported image upload
-POST /api/generate rail:nim, no treasury → 402 stage:"payment"  (model never called)
-POST /api/generate rail:demo           → reaches generation stage
-  ↳ retry after failure                → still allowed, credit preserved
+IN  258.70 NIM   data = 30383134663763613333666333386136
+                 utf8 = 0814f7ca33fc38a6   <- the order id
 ```
 
-Production build: **97.1 kB** first load JS.
+The server matched it, the model ran, and the image was delivered. That closed
+the project's longest-standing unknown: whether `dataCarriesOrderId` would
+recognise a real payment at all. It is now pinned in
+`test/encoding-mainnet.test.ts`, with a real staking payload as a negative case.
 
----
+**All eight presets produce their intended output.** Each was run through the
+real pipeline. Restore kept the monochrome period look and the print edge while
+removing scratches, rather than colourising. Passport produced a plain backdrop,
+even frontal light and correct framing. Pet Portrait gave studio lighting and
+real fur texture. Colour Sweep initially fixed its backdrop at teal, and a green
+bottle reproduced exactly the failure that had been predicted for it - the
+product lost its edges - so it now chooses a colour that contrasts with whatever
+it is given.
 
-## Deploying
+**API guards:**
 
-See [DEPLOY.md](DEPLOY.md) for Vercel settings and the full environment list.
+```
+GET  /api/quote                        -> live quote, 258.70 NIM for $0.10
+POST /api/orders  {presetId:"nope"}    -> 400  Unknown style preset
+POST /api/orders  (no model configured)-> 503  refuses to sell what it cannot deliver
+POST /api/generate unknown order       -> 404
+POST /api/generate "../etc/passwd"     -> 404  (id regex rejects it)
+POST /api/generate non-image payload   -> 400
+POST /api/generate rail:nim, no treasury -> 402 stage:"payment"  (model never called)
+GET  /api/orders/<id>  (no token)      -> 404, byte-identical to a wrong token
+GET  /results/<key>.jpg                -> 200 image/jpeg, served after boot
+GET  /results/../../package.json       -> 404
+```
 
-Two things are easy to miss on serverless and both silently break the paid flow:
-orders must be moved to Upstash (memory is not shared between invocations, so a
-paid order 404s), and results need an S3-compatible bucket (the filesystem is
-read-only, so the app falls back to a link that expires within the hour).
-
-## Result storage
-
-Replicate deletes prediction output after an hour - their docs are explicit that
-you must save a copy to keep using it. Handing that URL to the client meant a
-paying user who came back later found a broken image, so finished generations
-are copied somewhere durable before being returned.
-
-The backend is picked from the environment: an S3-compatible bucket (R2, S3, B2)
-when `S3_*` is set, otherwise local disk under `public/results/`. Local disk is
-correct for a container or VM with a volume and **wrong for serverless**, where
-the filesystem is ephemeral - configure S3 there.
-
-If storage fails the API falls back to the model's expiring URL rather than
-failing a generation the user already paid for, returns `durable: false`, and the
-result screen tells them to save it now. Degrading is always better than losing
-someone the thing they bought.
+93 tests. Production build: 112 kB first load on the studio route.
 
 ## Known gaps
 
-Stated plainly rather than left to be discovered:
+Stated plainly rather than left to be discovered.
 
-- ~~The `data` field encoding is unverified.~~ **Resolved.** A mainnet
-  transaction carrying a data payload was observed on the live treasury: the
-  indexer returns the field as a **hex string**, not decoded text. So a 16-char
-  order id arrives as 32 hex characters and only matches after decoding, which
-  is the path `dataCarriesOrderId` takes. Locked down in
-  `test/encoding-mainnet.test.ts`, including a real staking payload as a
-  negative case.
-- **Order storage defaults to memory.** Correct for `next start` on a container
-  or VM. On a serverless platform, set `UPSTASH_REDIS_REST_URL` /
-  `UPSTASH_REDIS_REST_TOKEN` or orders will not survive between instances.
-- **The 5-second target depends on Replicate.** The pipeline uses `Prefer: wait`
-  so short runs return with no polling at all, but the model's own latency is not
-  something the app controls. There is a 90s hard ceiling.
-
----
+- **Replicate throttles low-credit accounts.** Below $5 of credit the limit drops
+  to six predictions a minute with a burst of one, so two users arriving together
+  is enough to trip it. A 429 is now treated as a queue rather than a failure -
+  the request waits the interval Replicate names and tries once more - but under
+  real load the account needs headroom.
+- **No USDT treasury is configured**, so that rail is hidden. NIM alone satisfies
+  the competition's integration requirement.
+- **The showcase has no assets.** `scripts/generate-examples.mjs` produces them
+  from photos you own; until it is run, the section does not render at all rather
+  than showing a placeholder.
+- **Order storage is in memory.** Correct for this deployment, which is a single
+  long-lived server. On serverless it must move to Upstash or a paid order will
+  404 between invocations.
 
 ## Scripts
 

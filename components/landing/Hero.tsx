@@ -19,9 +19,9 @@ export default function Hero() {
         </p>
 
         <p className="mt-3 max-w-xl text-[0.9375rem] leading-relaxed text-ink-muted">
-          Upload a selfie, a product or your pet, pick a style, and pay $0.10 - settled
-          instantly in NIM or USDT through Nimiq Pay. No account to create, and no monthly
-          fee for photos you take three times a year.
+          Upload a selfie, a product or your pet, pick one of eight styles, and pay $0.10
+          in NIM - from Nimiq Pay on your phone, or a Nimiq Wallet in any browser. No
+          account to create, and no monthly fee for photos you take three times a year.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center gap-3">
