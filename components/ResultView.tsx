@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import CompareSlider from './CompareSlider'
 import PresetIcon from './PresetIcon'
+import { explorerUrl, railLabel, shortHash } from '@/lib/explorer'
 import { downloadImage, prefetchImage, type SaveOutcome } from '@/lib/client/image'
 import type { StylePreset } from '@/lib/presets'
 
@@ -207,11 +208,36 @@ export default function ResultView({
         </button>
       </div>
 
-      {txHash && (
-        <p className="text-center font-mono text-[0.625rem] text-ink-soft">
-          Settled in {rail?.toUpperCase()} · {txHash.slice(0, 10)}…{txHash.slice(-6)}
-        </p>
-      )}
+      {txHash &&
+        (() => {
+          const href = explorerUrl(rail, txHash)
+          const label = (
+            <>
+              Settled in {railLabel(rail)} ·{' '}
+              <span className="font-mono">{shortHash(txHash)}</span>
+            </>
+          )
+          // Linked when there is a public record to link to - the point is that
+          // the user can check the payment themselves, not just be told about it.
+          return href ? (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mx-auto flex items-center justify-center gap-1.5 text-center text-[0.6875rem] text-ink-soft underline decoration-ink-soft/40 underline-offset-2 transition hover:text-brand-500 hover:decoration-brand-500"
+            >
+              {label}
+              <svg viewBox="0 0 24 24" className="h-3 w-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M14 4h6v6" />
+                <path d="M20 4l-8 8" />
+                <path d="M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5" />
+              </svg>
+              <span className="sr-only">View this payment on the block explorer</span>
+            </a>
+          ) : (
+            <p className="text-center text-[0.6875rem] text-ink-soft">{label}</p>
+          )
+        })()}
     </div>
   )
 }
