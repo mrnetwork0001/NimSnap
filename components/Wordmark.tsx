@@ -1,17 +1,33 @@
+import Image from 'next/image'
 import Link from 'next/link'
 
-/** The lockup, used in both headers and the footer. */
-export default function Wordmark({ href = '/' }: { href?: string }) {
+/**
+ * The NimSnap lockup, used in both headers and the footer.
+ *
+ * The supplied artwork is a 3:1 wordmark with a tagline beneath it, so it is
+ * sized by height and left to find its own width - fixing the width instead
+ * would make the mark shrink on narrow phones where the header is tightest.
+ *
+ * `priority` because this sits in the first viewport on every route; letting it
+ * lazy-load would leave a visible gap on the fold.
+ */
+export default function Wordmark({
+  href = '/',
+  className = 'h-9',
+}: {
+  href?: string
+  className?: string
+}) {
   return (
-    <Link href={href} className="inline-flex items-center gap-2.5">
-      <span className="grid h-8 w-8 place-items-center rounded-full bg-brand-gradient shadow-brand">
-        <svg viewBox="0 0 24 24" className="h-4 w-4 text-white" aria-hidden="true">
-          <rect x="2.5" y="6" width="19" height="13" rx="4" fill="none" stroke="currentColor" strokeWidth="1.8" />
-          <circle cx="12" cy="12.5" r="3.6" fill="none" stroke="currentColor" strokeWidth="1.8" />
-          <path d="M9 6l1.3-2h3.4L15 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        </svg>
-      </span>
-      <span className="text-[1.0625rem] font-bold tracking-[-0.02em] text-ink">NimSnap</span>
+    <Link href={href} className="inline-flex items-center" aria-label="NimSnap home">
+      <Image
+        src="/brand/nimsnap-header.png"
+        alt="NimSnap - studio photos for ten cents a shot"
+        width={720}
+        height={240}
+        priority
+        className={`${className} w-auto`}
+      />
     </Link>
   )
 }
