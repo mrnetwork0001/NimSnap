@@ -6,6 +6,8 @@ interface Props {
   presetName: string
   /** Set once payment is confirmed, so the copy can move on from settlement. */
   paid: boolean
+  /** Abort the attempt. The payment survives, so this is never a forfeit. */
+  onCancel?: () => void
 }
 
 const STEPS = ['Confirming your payment', 'Reading the photo', 'Applying the style', 'Finishing in HD']
@@ -18,8 +20,19 @@ const STEPS = ['Confirming your payment', 'Reading the photo', 'Applying the sty
  * stages of the pipeline. It stalls on the final step rather than completing
  * early, because a bar that hits 100% and then waits reads as broken.
  */
-export default function GeneratingOverlay({ presetName, paid }: Props) {
+export default function GeneratingOverlay({ presetName, paid, onCancel }: Props) {
   const [step, setStep] = useState(0)
+  /**
+   * The escape hatch stays hidden at first. Offering it immediately invites
+   * people to cancel a perfectly healthy five-second render; it only appears
+   * once the wait has stopped feeling normal.
+   */
+  const [showCancel, setShowCancel] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setShowCancel(true), 12_000)
+    return () => clearTimeout(t)
+  }, [])
 
   useEffect(() => {
     if (!paid) {
@@ -80,6 +93,17 @@ export default function GeneratingOverlay({ presetName, paid }: Props) {
           )
         })}
       </ol>
+
+      {onCancel && (
+        <div className={`transition-opacity duration-500 ${showCancel ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>
+          <button type="button" onClick={onCancel} className="btn-ghost px-5 py-2.5 text-xs">
+            Stop waiting
+          </button>
+          <p className="mt-2 text-center text-[0.625rem] text-ink-soft">
+            Your payment stays credited
+          </p>
+        </div>
+      )}
     </div>
   )
 }

@@ -7,14 +7,31 @@ import PayBar from './PayBar'
 import GeneratingOverlay from './GeneratingOverlay'
 import ResultView from './ResultView'
 import HostBanner from './HostBanner'
+import CreditBanner from './CreditBanner'
 import ExampleShowcase from './ExampleShowcase'
 import { getPreset, type PresetId } from '@/lib/presets'
 import { prepareImage } from '@/lib/client/image'
 import { availableRails, payWithNim, payWithUsdt, PaymentError, type Rail } from '@/lib/client/pay'
 import type { Quote } from '@/lib/rates'
 import type { ExamplePair } from '@/lib/examples'
+import {
+  clearCredit,
+  loadCredit,
+  recoverOrder,
+  saveCredit,
+  type PaidCredit,
+} from '@/lib/client/credit'
 
 type Stage = 'compose' | 'working' | 'result'
+
+/**
+ * Hard ceiling on one generate attempt from the client's side.
+ *
+ * The server already caps the model at 90s; this sits above it so a network or
+ * platform stall cannot leave the overlay spinning with no escape. Aborting
+ * never forfeits the payment - the credit is on disk.
+ */
+const GENERATE_TIMEOUT_MS = 120_000
 
 interface Result {
   url: string
@@ -44,8 +61,15 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
   const [hint, setHint] = useState<string | null>(null)
   const [result, setResult] = useState<Result | null>(null)
 
-  /** An order already paid for but not yet redeemed, so a retry never re-charges. */
-  const paidOrderRef = useRef<{ id: string; rail: Rail; txHash?: string } | null>(null)
+  /**
+   * A paid-but-unredeemed shot. Held in a ref for the live flow and mirrored to
+   * device storage, so a reload or a killed webview cannot forfeit the payment.
+   */
+  const paidOrderRef = useRef<PaidCredit | null>(null)
+  /** Set when a stored credit is found on load, so the user can finish it. */
+  const [pendingCredit, setPendingCredit] = useState<PaidCredit | null>(null)
+  /** Lets the generate request be cancelled instead of hanging forever. */
+  const abortRef = useRef<AbortController | null>(null)
 
   const preset = presetId ? getPreset(presetId) : null
 
@@ -66,6 +90,51 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
   useEffect(() => {
     setRail((current) => (current && rails.includes(current) ? current : (rails[0] ?? null)))
   }, [rails])
+
+  /**
+   * Recover a shot that was paid for but never delivered.
+   *
+   * Runs once on load. If the server says it already completed, the image is
+   * restored outright; if it is still redeemable, the user is offered a free
+   * retry. Either way the money is not lost.
+   */
+  useEffect(() => {
+    const credit = loadCredit()
+    if (!credit) return
+    let cancelled = false
+    recoverOrder(credit).then((found) => {
+      if (cancelled) return
+      if (!found) {
+        // Order is gone or the token does not match - stop offering it.
+        clearCredit()
+        return
+      }
+      if (found.resultUrl) {
+        paidOrderRef.current = null
+        clearCredit()
+        setResult({
+          url: found.resultUrl,
+          presetId: found.presetId,
+          txHash: found.txHash ?? undefined,
+          rail: found.rail ?? undefined,
+          durable: true,
+        })
+        setPresetId(found.presetId)
+        setStage('result')
+        return
+      }
+      if (found.consumed) {
+        clearCredit()
+        return
+      }
+      paidOrderRef.current = credit
+      setPendingCredit(credit)
+      setPresetId(credit.presetId)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -96,8 +165,10 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
     try {
       const prepared = await prepareImage(chosen)
       setFile({ dataUri: prepared.dataUri })
-      // A fresh photo invalidates any previously paid order.
-      paidOrderRef.current = null
+      // A paid credit deliberately SURVIVES a change of photo. It is money the
+      // user has already spent and the server has not yet delivered against, so
+      // discarding it here would silently force them to pay a second time - they
+      // simply redeem it on the new photo instead.
       setHint(null)
     } catch (err) {
       setHint(null)
@@ -113,22 +184,35 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
     setStage('working')
     setPaid(false)
 
+    // Always spend an existing credit on the style it was bought for. The server
+    // generates from the order's own preset, so sending a different one would
+    // deliver the paid style under the wrong name.
+    const credit = paidOrderRef.current
+    const effectivePreset = credit ? credit.presetId : presetId
+
+    const controller = new AbortController()
+    abortRef.current = controller
+    // A hung upstream must not freeze the overlay forever with no way out.
+    const timeout = setTimeout(() => controller.abort(), GENERATE_TIMEOUT_MS)
+
     try {
       // Reuse a paid-but-unredeemed order rather than charging twice for a retry.
-      let orderId = paidOrderRef.current?.id
-      let payRail: Rail = rail
-      let txHash = paidOrderRef.current?.txHash
+      let orderId = credit?.orderId
+      let payRail: Rail = credit?.rail ?? rail
+      let txHash = credit?.txHash
 
       if (!orderId) {
         const orderRes = await fetch('/api/orders', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ presetId }),
+          signal: controller.signal,
         })
         const orderJson = await orderRes.json()
         if (!orderRes.ok) throw new Error(orderJson.error ?? 'Could not start the order.')
 
         orderId = orderJson.orderId as string
+        const claimToken = orderJson.claimToken as string
         const liveQuote = orderJson.quote as Quote
         setQuote(liveQuote)
 
@@ -139,7 +223,20 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
           txHash = paymentResult.txHash
         }
         payRail = rail
-        paidOrderRef.current = { id: orderId, rail: payRail, txHash }
+
+        const fresh: PaidCredit = {
+          orderId,
+          claimToken,
+          presetId,
+          rail: payRail,
+          txHash,
+          savedAt: Date.now(),
+        }
+        paidOrderRef.current = fresh
+        // Written the instant the money moves, so nothing after this point can
+        // lose it - not a reload, not the webview being reclaimed.
+        saveCredit(fresh)
+        setPendingCredit(null)
       }
 
       setPaid(true)
@@ -148,15 +245,19 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ orderId, rail: payRail, txHash, image: file.dataUri }),
+        signal: controller.signal,
       })
       const genJson = await genRes.json()
       if (!genRes.ok) throw new Error(genJson.error ?? 'The transformation failed.')
 
       // Redeemed - this order can no longer be reused.
       paidOrderRef.current = null
+      clearCredit()
+      setPendingCredit(null)
       setResult({
         url: genJson.resultUrl as string,
-        presetId,
+        // Label with the style that was paid for, not whatever is selected now.
+        presetId: (genJson.preset as PresetId) ?? effectivePreset,
         txHash: genJson.txHash as string | undefined,
         rail: genJson.rail as string | undefined,
         durable: genJson.durable !== false,
@@ -165,13 +266,29 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
     } catch (err) {
       setStage('compose')
       setPaid(false)
-      if (err instanceof PaymentError && err.cancelled) {
+      if (controller.signal.aborted) {
+        setError(
+          paidOrderRef.current
+            ? 'That took too long, so we stopped waiting. Your payment is still credited - tap to try again.'
+            : 'That took too long, so we stopped waiting. Nothing was charged.',
+        )
+      } else if (err instanceof PaymentError && err.cancelled) {
         setError('Payment cancelled. Nothing was charged.')
       } else {
         setError(err instanceof Error ? err.message : 'Something went wrong.')
       }
+      // Surface any surviving credit so it can be resumed from a clean state.
+      if (paidOrderRef.current) setPendingCredit(paidOrderRef.current)
+    } finally {
+      clearTimeout(timeout)
+      abortRef.current = null
     }
   }, [file, presetId, rail])
+
+  /** Stop waiting on a stalled generation without forfeiting the payment. */
+  const cancelGeneration = useCallback(() => {
+    abortRef.current?.abort()
+  }, [])
 
   const canPay = Boolean(file && presetId && rail && stage === 'compose')
 
@@ -220,6 +337,18 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
         <div className="min-w-0 space-y-5">
           <HostBanner rails={rails} />
 
+          {pendingCredit && (
+            <CreditBanner
+              credit={pendingCredit}
+              canResume={Boolean(file)}
+              onDiscard={() => {
+                paidOrderRef.current = null
+                clearCredit()
+                setPendingCredit(null)
+              }}
+            />
+          )}
+
           <UploadZone
             previewUrl={file?.dataUri ?? null}
             onFile={onFile}
@@ -263,7 +392,11 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
       />
 
       {stage === 'working' && (
-        <GeneratingOverlay presetName={preset?.name ?? 'shot'} paid={paid} />
+        <GeneratingOverlay
+          presetName={preset?.name ?? 'shot'}
+          paid={paid}
+          onCancel={cancelGeneration}
+        />
       )}
     </>
   )
