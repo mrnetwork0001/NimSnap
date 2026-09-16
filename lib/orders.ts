@@ -18,7 +18,7 @@ import type { PresetId } from './presets'
  */
 
 export type OrderStatus = 'created' | 'paid' | 'generating' | 'complete' | 'failed'
-export type PaymentRail = 'nim' | 'usdt' | 'demo'
+export type PaymentRail = 'nim' | 'hub' | 'usdt' | 'demo'
 
 export interface Order {
   id: string

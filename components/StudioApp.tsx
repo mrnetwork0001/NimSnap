@@ -11,7 +11,14 @@ import CreditBanner from './CreditBanner'
 import ExampleShowcase from './ExampleShowcase'
 import { getPreset, type PresetId } from '@/lib/presets'
 import { prepareImage } from '@/lib/client/image'
-import { availableRails, payWithNim, payWithUsdt, PaymentError, type Rail } from '@/lib/client/pay'
+import {
+  availableRails,
+  payWithHub,
+  payWithNim,
+  payWithUsdt,
+  PaymentError,
+  type Rail,
+} from '@/lib/client/pay'
 import type { Quote } from '@/lib/rates'
 import type { ExamplePair } from '@/lib/examples'
 import {
@@ -72,6 +79,15 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
   const [pendingCredit, setPendingCredit] = useState<PaidCredit | null>(null)
   /** Lets the generate request be cancelled instead of hanging forever. */
   const abortRef = useRef<AbortController | null>(null)
+  /**
+   * An order minted ahead of the click, for the Hub rail only.
+   *
+   * The Hub opens a popup, which browsers allow only while a user gesture is
+   * still active. Minting the order inside the click handler means waiting on
+   * the network first, which spends that activation and gets the popup blocked.
+   * So the order is prepared as soon as a photo and a style are chosen.
+   */
+  const preparedRef = useRef<{ orderId: string; claimToken: string; presetId: PresetId; quote: Quote } | null>(null)
 
   const preset = presetId ? getPreset(presetId) : null
 
@@ -159,6 +175,48 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
     }
   }, [])
 
+  /**
+   * Prepare everything the Hub rail needs before the user can click.
+   *
+   * Both the module and the order are fetched ahead of time, so the click
+   * handler reaches the popup without an intervening network round-trip.
+   */
+  useEffect(() => {
+    if (rail !== 'hub' || !file || !presetId || paidOrderRef.current) return
+
+    let cancelled = false
+    // Warm the Hub bundle so the dynamic import resolves from cache.
+    import('@nimiq/hub-api').catch(() => {})
+
+    const prepared = preparedRef.current
+    if (prepared && prepared.presetId === presetId) return
+
+    fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ presetId }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (cancelled || !json) return
+        preparedRef.current = {
+          orderId: json.orderId,
+          claimToken: json.claimToken,
+          presetId,
+          quote: json.quote,
+        }
+        setQuote(json.quote)
+      })
+      .catch(() => {
+        // Non-fatal: run() falls back to minting inline, which on this rail may
+        // cost the popup but still surfaces a clear error rather than nothing.
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [rail, file, presetId])
+
   /* ---- Intake ----------------------------------------------------------- */
 
   const onFile = useCallback(async (chosen: File) => {
@@ -205,27 +263,46 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
       let txHash = credit?.txHash
 
       if (!orderId) {
-        const orderRes = await fetch('/api/orders', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ presetId }),
-          signal: controller.signal,
-        })
-        const orderJson = await orderRes.json()
-        if (!orderRes.ok) throw new Error(orderJson.error ?? 'Could not start the order.')
+        // Use the order prepared for this rail when we have one; minting here
+        // would cost the Hub its popup.
+        const prepared =
+          rail === 'hub' && preparedRef.current?.presetId === presetId
+            ? preparedRef.current
+            : null
 
-        orderId = orderJson.orderId as string
-        const claimToken = orderJson.claimToken as string
-        const liveQuote = orderJson.quote as Quote
+        let claimToken: string
+        let liveQuote: Quote
+
+        if (prepared) {
+          orderId = prepared.orderId
+          claimToken = prepared.claimToken
+          liveQuote = prepared.quote
+        } else {
+          const orderRes = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ presetId }),
+            signal: controller.signal,
+          })
+          const orderJson = await orderRes.json()
+          if (!orderRes.ok) throw new Error(orderJson.error ?? 'Could not start the order.')
+          orderId = orderJson.orderId as string
+          claimToken = orderJson.claimToken as string
+          liveQuote = orderJson.quote as Quote
+        }
         setQuote(liveQuote)
 
         if (rail === 'nim') {
           await payWithNim(orderId, liveQuote)
+        } else if (rail === 'hub') {
+          const paymentResult = await payWithHub(orderId, liveQuote)
+          txHash = paymentResult.txHash
         } else if (rail === 'usdt') {
           const paymentResult = await payWithUsdt(liveQuote)
           txHash = paymentResult.txHash
         }
         payRail = rail
+        preparedRef.current = null
 
         const fresh: PaidCredit = {
           orderId,

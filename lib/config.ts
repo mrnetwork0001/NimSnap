@@ -46,6 +46,12 @@ export const POLYGON_RPC_URLS = (
   .filter(Boolean)
 
 /**
+ * Nimiq Hub endpoint - Nimiq's own hosted checkout, used by browsers with no
+ * injected provider. Override only to point at the testnet Hub.
+ */
+export const HUB_ENDPOINT = process.env.NEXT_PUBLIC_HUB_ENDPOINT ?? 'https://hub.nimiq.com'
+
+/**
  * Demo mode lets the app run end-to-end outside the Nimiq Pay host (a plain
  * desktop browser, a competition judge's laptop, CI) without moving real funds.
  * It is OFF unless explicitly enabled, and the UI always says when it is on.

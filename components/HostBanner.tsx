@@ -18,6 +18,26 @@ interface Props {
 export default function HostBanner({ rails, hasExamples = false }: Props) {
   const hasRealRail = rails.some((r) => r !== 'demo')
 
+  // Paying through Nimiq's hosted checkout works, but it is worth saying so:
+  // a browser with no injected wallet used to be a dead end here.
+  if (rails.includes('hub') && !DEMO_MODE) {
+    return (
+      <div className="card-sm flex items-start gap-3 px-4 py-3">
+        <span className="chip h-8 w-8">
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7">
+            <rect x="3" y="6" width="18" height="12" rx="3" />
+            <path d="M3 10h18" />
+          </svg>
+        </span>
+        <p className="text-xs leading-relaxed text-ink-muted">
+          <span className="font-bold text-ink">Pay with your Nimiq Wallet.</span> Tapping
+          Generate opens Nimiq&rsquo;s secure checkout, so you can pay from
+          wallet.nimiq.com without installing anything.
+        </p>
+      </div>
+    )
+  }
+
   if (hasRealRail && !DEMO_MODE) return null
 
   if (!hasRealRail && !DEMO_MODE) {

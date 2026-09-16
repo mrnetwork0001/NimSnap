@@ -2,6 +2,7 @@
 
 import { init, type NimiqProvider } from '@nimiq/mini-app-sdk'
 import {
+  HUB_ENDPOINT,
   NIM_TREASURY,
   POLYGON_CHAIN_ID,
   USDT_POLYGON_ADDRESS,
@@ -21,7 +22,7 @@ import type { Quote } from '../rates'
  * ERC-20 transfer on Polygon.
  */
 
-export type Rail = 'nim' | 'usdt' | 'demo'
+export type Rail = 'nim' | 'hub' | 'usdt' | 'demo'
 
 export interface PayResult {
   rail: Rail
@@ -124,6 +125,55 @@ export async function payWithNim(orderId: string, quote: Quote): Promise<PayResu
   return { rail: 'nim', raw: result }
 }
 
+/* ------------------------------------------------------- Nimiq Hub rail ---- */
+
+/**
+ * Pay from a Nimiq Wallet (wallet.nimiq.com) via the Nimiq Hub.
+ *
+ * This is the rail for people in an ordinary browser, who have no injected
+ * provider because Nimiq Pay is a phone app. The Hub is Nimiq's own hosted
+ * checkout: it opens in a popup, the user approves with their existing wallet,
+ * and it hands back a signed transaction.
+ *
+ * `extraData` carries the order id exactly as the Mini App rail's `data` field
+ * does, so settlement verification is identical and the server needs no special
+ * case - a Hub payment and a Nimiq Pay payment are indistinguishable on chain.
+ *
+ * IMPORTANT: this opens a popup, so it must be called while the browser still
+ * considers a user gesture active. Awaiting anything first (minting the order,
+ * for instance) spends that activation and the popup is blocked. The caller is
+ * responsible for having the order id already in hand.
+ */
+export async function payWithHub(orderId: string, quote: Quote): Promise<PayResult> {
+  if (!NIM_TREASURY) {
+    throw new PaymentError('This deployment has no NIM treasury configured.')
+  }
+  if (!quote.nimAvailable || quote.lunas <= 0) {
+    throw new PaymentError('The NIM price is unavailable right now. Try again shortly.')
+  }
+
+  // Loaded on demand: the Hub bundle is substantial and most visitors, who
+  // arrive inside Nimiq Pay, never need it.
+  const { default: HubApi } = await import('@nimiq/hub-api')
+  const hub = new HubApi(HUB_ENDPOINT)
+
+  try {
+    const signed = await hub.checkout({
+      appName: 'NimSnap',
+      recipient: NIM_TREASURY,
+      value: quote.lunas,
+      // Encoded explicitly rather than passed as a string, so there is no
+      // ambiguity about whether the Hub treats it as text or as hex.
+      extraData: new TextEncoder().encode(orderId),
+    })
+
+    const hash = (signed as { hash?: string })?.hash
+    return { rail: 'hub', txHash: hash, raw: signed }
+  } catch (err) {
+    throw asError(err, 'The payment was not completed.')
+  }
+}
+
 /* ------------------------------------------------------------ USDT rail ---- */
 
 /** ERC-20 `transfer(address,uint256)` selector. */
@@ -207,7 +257,17 @@ export async function payWithUsdt(quote: Quote): Promise<PayResult> {
 export async function availableRails(): Promise<Rail[]> {
   const rails: Rail[] = []
   const provider = await getNimiqProvider()
-  if (provider && NIM_TREASURY) rails.push('nim')
+
+  if (provider && NIM_TREASURY) {
+    // Inside Nimiq Pay the injected provider is the better experience: no
+    // popup, no second wallet to unlock.
+    rails.push('nim')
+  } else if (NIM_TREASURY) {
+    // An ordinary browser has no injected provider, but the Hub lets anyone
+    // with a Nimiq Wallet pay anyway. Without this the web is a dead end.
+    rails.push('hub')
+  }
+
   if (hasEthereumHost() && USDT_TREASURY) rails.push('usdt')
   if (DEMO_MODE) rails.push('demo')
   return rails

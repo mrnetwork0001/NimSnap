@@ -14,7 +14,10 @@ interface Props {
   hint: string | null
 }
 
-const RAIL_LABEL: Record<Rail, string> = { nim: 'NIM', usdt: 'USDT', demo: 'Demo' }
+// 'hub' is still a NIM payment - it just arrives via Nimiq's hosted checkout
+// rather than an injected provider - so the user sees the currency, not the
+// plumbing.
+const RAIL_LABEL: Record<Rail, string> = { nim: 'NIM', hub: 'NIM', usdt: 'USDT', demo: 'Demo' }
 
 function formatNim(nim: number): string {
   if (nim >= 1000) return `${Math.round(nim).toLocaleString()} NIM`
@@ -37,7 +40,7 @@ export default function PayBar({ quote, rails, rail, onRailChange, onPay, ready,
       ? `$${quote.usd.toFixed(2)} USDT`
       : rail === 'demo'
         ? 'Free (demo)'
-        : rail === 'nim'
+        : rail === 'nim' || rail === 'hub'
           ? `$${quote.usd.toFixed(2)}`
           : null
 
@@ -75,7 +78,7 @@ export default function PayBar({ quote, rails, rail, onRailChange, onPay, ready,
 
         <p className="text-center text-[0.6875rem] leading-relaxed text-ink-soft">
           {hint ??
-            (quote && rail === 'nim'
+            (quote && (rail === 'nim' || rail === 'hub')
               ? `≈ ${formatNim(quote.nim)} · settles instantly · no subscription`
               : 'Pay per shot · no subscription · no account')}
         </p>

@@ -105,7 +105,7 @@ export async function POST(req: Request) {
   if ((image.length * 3) / 4 > MAX_UPLOAD_BYTES) {
     return NextResponse.json({ error: 'That image is too large.' }, { status: 413 })
   }
-  if (rail !== 'nim' && rail !== 'usdt' && rail !== 'demo') {
+  if (rail !== 'nim' && rail !== 'hub' && rail !== 'usdt' && rail !== 'demo') {
     return NextResponse.json({ error: 'Unknown payment rail.' }, { status: 400 })
   }
   if (rail === 'demo' && !DEMO_MODE) {
