@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import CompareSlider from './CompareSlider'
 import PresetIcon from './PresetIcon'
-import { downloadImage } from '@/lib/client/image'
+import { downloadImage, type SaveOutcome } from '@/lib/client/image'
 import type { StylePreset } from '@/lib/presets'
 
 interface Props {
@@ -44,12 +44,24 @@ export default function ResultView({
 }: Props) {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  /** What the last save actually did, so the user is told rather than guessing. */
+  const [saveNote, setSaveNote] = useState<string | null>(null)
 
   const save = async () => {
     setSaving(true)
     setSaveError(null)
+    setSaveNote(null)
     try {
-      await downloadImage(afterSrc, `nimsnap-${preset.id}-${Date.now()}.jpg`)
+      const ext = afterSrc.split('?')[0].split('.').pop()
+      const safeExt = ext && /^(jpg|jpeg|png|webp)$/i.test(ext) ? ext.toLowerCase() : 'jpg'
+      const outcome: SaveOutcome = await downloadImage(
+        afterSrc,
+        `nimsnap-${preset.id}-${Date.now()}.${safeExt}`,
+      )
+      // Only the long-press route needs explaining; the other two are self-evident.
+      if (outcome === 'opened') {
+        setSaveNote('Opened in a new tab - press and hold the image to save it.')
+      }
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Could not save the image.')
     } finally {
@@ -119,6 +131,12 @@ export default function ResultView({
       {saveError && (
         <p role="alert" className="text-center text-xs text-rose-600">
           {saveError}
+        </p>
+      )}
+
+      {saveNote && (
+        <p role="status" className="text-center text-xs text-ink-muted">
+          {saveNote}
         </p>
       )}
 

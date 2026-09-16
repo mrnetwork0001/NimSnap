@@ -87,21 +87,75 @@ export async function prepareImage(file: File): Promise<PreparedImage> {
 /**
  * Save the finished image to the device.
  *
- * The result is served from Replicate's CDN, so we fetch it into a blob first:
- * a bare cross-origin `download` attribute is ignored by most browsers and would
- * silently navigate away from the app instead of saving.
+ * `<a download>` is unreliable in exactly the place this app runs: in-app
+ * webviews (Nimiq Pay, Instagram, X) frequently ignore the attribute entirely,
+ * so the click silently does nothing and a paying user is left with no file and
+ * no error. Three strategies are tried in order of how good the outcome is.
+ *
+ * Resolves with the strategy that worked so the UI can tell the user what to do
+ * next - "saved" needs no follow-up, "shared" hands off to the share sheet, and
+ * "opened" means they must press and hold the image themselves.
  */
-export async function downloadImage(url: string, filename: string): Promise<void> {
-  const res = await fetch(url)
-  if (!res.ok) throw new ImageError('The image could not be downloaded.')
-  const blob = await res.blob()
+export type SaveOutcome = 'saved' | 'shared' | 'opened'
+
+export async function downloadImage(url: string, filename: string): Promise<SaveOutcome> {
+  let blob: Blob
+  try {
+    const res = await fetch(url)
+    if (!res.ok) throw new ImageError(`The image could not be fetched (${res.status}).`)
+    blob = await res.blob()
+  } catch (err) {
+    if (err instanceof ImageError) throw err
+    throw new ImageError('The image could not be downloaded. Check your connection.')
+  }
+
+  const file = new File([blob], filename, { type: blob.type || 'image/jpeg' })
+
+  // 1. The native share sheet. On iOS and Android this is the only route that
+  //    reliably reaches the camera roll from inside a webview, and it is what
+  //    people expect on a phone.
+  try {
+    const nav = navigator as Navigator & {
+      canShare?: (data: { files?: File[] }) => boolean
+      share?: (data: { files?: File[]; title?: string }) => Promise<void>
+    }
+    if (nav.share && nav.canShare?.({ files: [file] })) {
+      await nav.share({ files: [file], title: 'NimSnap' })
+      return 'shared'
+    }
+  } catch (err) {
+    // A user dismissing the sheet is a decision, not a failure - do not fall
+    // through and shove a second UI at them.
+    if (err instanceof Error && err.name === 'AbortError') return 'shared'
+  }
+
+  // 2. A real download, which is right on desktop.
   const objectUrl = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = objectUrl
-  anchor.download = filename
-  document.body.appendChild(anchor)
-  anchor.click()
-  anchor.remove()
-  // Give the browser a beat to start the save before revoking.
-  setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000)
+  try {
+    const anchor = document.createElement('a')
+    if ('download' in anchor) {
+      anchor.href = objectUrl
+      anchor.download = filename
+      anchor.rel = 'noopener'
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000)
+      return 'saved'
+    }
+  } catch {
+    /* fall through to opening it */
+  }
+
+  // 3. Last resort: put the image on screen so it can be long-pressed. Worse
+  //    than a real save, but far better than a button that does nothing.
+  const opened = window.open(objectUrl, '_blank', 'noopener')
+  if (!opened) {
+    URL.revokeObjectURL(objectUrl)
+    throw new ImageError(
+      'Your browser blocked the download. Press and hold the image above to save it.',
+    )
+  }
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
+  return 'opened'
 }
