@@ -6,11 +6,11 @@ import { join } from 'path'
  * Replicate deletes model output after an hour, so a paid result has to be
  * copied somewhere durable before we hand it over. The property that matters
  * most: a storage problem must never cost somebody the generation they paid
- * for — we degrade to the expiring URL and say so, rather than failing.
+ * for - we degrade to the expiring URL and say so, rather than failing.
  */
 
-const TMP = 'test-results-tmp'
-const BLOCKED = 'test-results-blocked'
+const TMP = '.data/test-results-tmp'
+const BLOCKED = '.data/test-results-blocked'
 
 async function freshStorage(env: Record<string, string | undefined> = {}) {
   vi.resetModules()
@@ -50,18 +50,21 @@ describe('local backend', () => {
   test('writes the image to disk and returns a stable public path', async () => {
     vi.stubGlobal('fetch', okImage())
     const { persistResult } = await freshStorage()
-    const r = await persistResult('https://replicate.delivery/abc.jpg', 'deadbeefdeadbeef')
+    const r = await persistResult('https://replicate.delivery/abc.jpg', 'a1b2c3d4e5f60718293a4b5c6d7e8f90')
 
     expect(r.durable).toBe(true)
-    expect(r.url).toBe('/results/deadbeefdeadbeef.jpg')
-    const written = await readFile(join(process.cwd(), TMP, 'deadbeefdeadbeef.jpg'))
+    expect(r.url).toBe('/results/a1b2c3d4e5f60718293a4b5c6d7e8f90.jpg')
+    const written = await readFile(join(process.cwd(), TMP, 'a1b2c3d4e5f60718293a4b5c6d7e8f90.jpg'))
     expect(new Uint8Array(written)).toEqual(JPEG)
   })
 
-  test('names the object after the order, so a file traces back to its payment', async () => {
+  test('names the object after the private key, never the public order id', async () => {
     vi.stubGlobal('fetch', okImage())
     const { persistResult } = await freshStorage()
-    expect((await persistResult('https://x/y.jpg', 'aaaabbbbccccdddd')).url).toContain('aaaabbbbccccdddd')
+    const url = (await persistResult('https://x/y.jpg', 'ffeeddccbbaa99887766554433221100')).url
+    expect(url).toContain('ffeeddccbbaa99887766554433221100')
+    // The public, on-chain order id must never appear in a stored result's URL.
+    expect(url).not.toContain('01fe35b992010ea5')
   })
 
   test('honours the content type when choosing an extension', async () => {
@@ -71,7 +74,7 @@ describe('local backend', () => {
       arrayBuffer: async () => JPEG.buffer, text: async () => '',
     }))
     const { persistResult } = await freshStorage()
-    expect((await persistResult('https://x/y', 'deadbeefdeadbeef')).url).toMatch(/\.png$/)
+    expect((await persistResult('https://x/y', 'a1b2c3d4e5f60718293a4b5c6d7e8f90')).url).toMatch(/\.png$/)
   })
 })
 
@@ -80,7 +83,7 @@ describe('degradation', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, headers: new Headers(), arrayBuffer: async () => JPEG.buffer, text: async () => '' }))
     const { persistResult } = await freshStorage()
     const src = 'https://replicate.delivery/gone.jpg'
-    const r = await persistResult(src, 'deadbeefdeadbeef')
+    const r = await persistResult(src, 'a1b2c3d4e5f60718293a4b5c6d7e8f90')
 
     // The user still gets their image; we just cannot promise it will last.
     expect(r.url).toBe(src)
@@ -90,7 +93,7 @@ describe('degradation', () => {
   test('falls back rather than throwing when the source fetch errors', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')))
     const { persistResult } = await freshStorage()
-    const r = await persistResult('https://x/y.jpg', 'deadbeefdeadbeef')
+    const r = await persistResult('https://x/y.jpg', 'a1b2c3d4e5f60718293a4b5c6d7e8f90')
     expect(r.durable).toBe(false)
     expect(r.url).toBe('https://x/y.jpg')
   })
@@ -103,7 +106,7 @@ describe('degradation', () => {
     await writeFile(blocker, 'not a directory')
     try {
       const { persistResult } = await freshStorage({ RESULT_LOCAL_DIR: `${BLOCKED}/sub` })
-      const r = await persistResult('https://x/y.jpg', 'deadbeefdeadbeef')
+      const r = await persistResult('https://x/y.jpg', 'a1b2c3d4e5f60718293a4b5c6d7e8f90')
       expect(r.durable).toBe(false)
       expect(r.url).toBe('https://x/y.jpg')
     } finally {
@@ -148,14 +151,14 @@ describe('s3 backend', () => {
     vi.stubGlobal('fetch', f)
 
     const { persistResult } = await freshStorage(s3Env)
-    const r = await persistResult('https://replicate.delivery/a.jpg', 'deadbeefdeadbeef')
+    const r = await persistResult('https://replicate.delivery/a.jpg', 'a1b2c3d4e5f60718293a4b5c6d7e8f90')
 
     expect(r.durable).toBe(true)
-    expect(r.url).toBe('https://cdn.nimsnap.test/deadbeefdeadbeef.jpg')
+    expect(r.url).toBe('https://cdn.nimsnap.test/a1b2c3d4e5f60718293a4b5c6d7e8f90.jpg')
 
     expect(calls).toHaveLength(1)
     const headers = calls[0].init.headers as Record<string, string>
-    expect(calls[0].url).toBe('https://account.r2.cloudflarestorage.com/nimsnap/deadbeefdeadbeef.jpg')
+    expect(calls[0].url).toBe('https://account.r2.cloudflarestorage.com/nimsnap/a1b2c3d4e5f60718293a4b5c6d7e8f90.jpg')
     expect(headers.authorization).toMatch(/^AWS4-HMAC-SHA256 Credential=AKIAEXAMPLE\//)
     expect(headers.authorization).toMatch(/Signature=[0-9a-f]{64}/)
     expect(headers['x-amz-content-sha256']).toMatch(/^[0-9a-f]{64}$/)
@@ -173,7 +176,7 @@ describe('s3 backend', () => {
           }),
     ))
     const { persistResult } = await freshStorage(s3Env)
-    const r = await persistResult('https://replicate.delivery/a.jpg', 'deadbeefdeadbeef')
+    const r = await persistResult('https://replicate.delivery/a.jpg', 'a1b2c3d4e5f60718293a4b5c6d7e8f90')
     expect(r.durable).toBe(false)
     expect(r.url).toBe('https://replicate.delivery/a.jpg')
   })

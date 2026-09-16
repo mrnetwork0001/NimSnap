@@ -8,7 +8,7 @@ import { join } from 'path'
  * Replicate deletes prediction output after an hour ("You must save a copy of
  * any files in the output if you'd like to continue using them"). Handing that
  * URL straight to the client meant a paying user who came back later found a
- * broken image — they paid $0.10 for something that evaporated.
+ * broken image - they paid $0.10 for something that evaporated.
  *
  * So we copy the result somewhere durable before returning it. The backend is
  * chosen from the environment:
@@ -27,7 +27,15 @@ export interface StoredResult {
   durable: boolean
 }
 
-const PUBLIC_DIR = process.env.RESULT_LOCAL_DIR ?? 'public/results'
+/**
+ * Results are written OUTSIDE public/ and served by app/results/[key]/route.ts.
+ *
+ * Next.js enumerates public/ once at boot in production, so a file written there
+ * at request time is never served - the paid image 404s. Writing outside it and
+ * streaming through a route handler is the only thing that actually works on a
+ * long-lived server.
+ */
+const LOCAL_DIR = process.env.RESULT_LOCAL_DIR ?? '.data/results'
 const PUBLIC_BASE = process.env.RESULT_PUBLIC_BASE ?? '/results'
 
 interface S3Config {
@@ -142,9 +150,9 @@ async function putToS3(cfg: S3Config, key: string, body: Uint8Array, contentType
  * Copy a finished generation somewhere it will still exist tomorrow.
  *
  * @param sourceUrl the model's output URL, which is short-lived
- * @param orderId   used to name the object, so a result is traceable to its payment
+ * @param resultKey unguessable object name; never the order id, which is public
  */
-export async function persistResult(sourceUrl: string, orderId: string): Promise<StoredResult> {
+export async function persistResult(sourceUrl: string, resultKey: string): Promise<StoredResult> {
   let bytes: Uint8Array
   let contentType = 'image/jpeg'
   try {
@@ -153,20 +161,20 @@ export async function persistResult(sourceUrl: string, orderId: string): Promise
     contentType = res.headers.get('content-type') ?? contentType
     bytes = new Uint8Array(await res.arrayBuffer())
   } catch (err) {
-    // Could not even read the model output — nothing to persist. Hand back the
+    // Could not even read the model output - nothing to persist. Hand back the
     // original so the user still gets their image while it lasts.
     console.error('[storage] could not download model output:', err)
     return { url: sourceUrl, durable: false }
   }
 
   const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg'
-  const key = `${orderId}.${ext}`
+  const key = `${resultKey}.${ext}`
   const cfg = s3Config()
 
   try {
     if (cfg) return { url: await putToS3(cfg, key, bytes, contentType), durable: true }
 
-    const dir = join(process.cwd(), PUBLIC_DIR)
+    const dir = join(process.cwd(), LOCAL_DIR)
     await mkdir(dir, { recursive: true })
     await writeFile(join(dir, key), bytes)
     return { url: `${PUBLIC_BASE}/${key}`, durable: true }

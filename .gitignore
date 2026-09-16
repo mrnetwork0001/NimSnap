@@ -20,3 +20,6 @@ public/results/
 # Test scratch
 test-results-tmp/
 test-results-blocked
+
+# Locally persisted results now live outside public/
+.data/
