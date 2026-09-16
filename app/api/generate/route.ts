@@ -108,6 +108,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'This order expired. Start a new shot.' }, { status: 410 })
   }
 
+  // The caller is claiming a payment. Record that before verification runs, so a
+  // slow indexer cannot let the order expire underneath a genuine payer while
+  // they retry.
+  if (rail !== 'demo' && !order.paymentReportedAt) {
+    await updateOrder(order.id, { paymentReportedAt: Date.now() })
+  }
+
   const preset = getPreset(order.presetId)
   if (!preset) return NextResponse.json({ error: 'Unknown style preset.' }, { status: 400 })
 
@@ -121,8 +128,15 @@ export async function POST(req: Request) {
   } else {
     const settlement = await awaitSettlement(order, rail, txHash)
     if (!settlement.settled) {
+      console.error(`[nimsnap] settlement failed for ${order.id}: ${settlement.reason}`)
+      // settlement.reason is written for an operator ("Nimiq indexer responded
+      // 503"), so it is logged rather than shown.
       return NextResponse.json(
-        { error: settlement.reason ?? 'Payment could not be verified.', stage: 'payment' },
+        {
+          error:
+            'We could not confirm your payment yet. If it has left your wallet, reopen NimSnap shortly and it will finish.',
+          stage: 'payment',
+        },
         { status: 402 },
       )
     }
@@ -181,12 +195,26 @@ export async function POST(req: Request) {
       preset: preset.id,
     })
   } catch (err) {
-    const message =
-      err instanceof GenerationError
-        ? err.message
-        : 'The transformation failed unexpectedly.'
-    // Leave the order paid-but-unconsumed so the user can retry without paying twice.
+    const known = err instanceof GenerationError
+    const message = known ? err.message : 'The transformation failed unexpectedly.'
+    // A configuration or billing fault will fail identically on every retry, so
+    // saying "try again" would trap a paying user in a loop that cannot succeed.
+    const retryable = known ? err.retryable : true
+    if (!known) console.error('[nimsnap] unexpected generation failure:', err)
+
+    // Leave the order paid-but-unconsumed so the user can retry without paying
+    // twice - true even for terminal errors, so the credit survives for a
+    // refund or a later fix.
     await updateOrder(order.id, { status: 'paid', error: message })
-    return NextResponse.json({ error: message, stage: 'generation', retryable: true }, { status: 502 })
+    return NextResponse.json(
+      {
+        error: retryable
+          ? message
+          : `${message} Your payment is still credited - nothing was lost.`,
+        stage: 'generation',
+        retryable,
+      },
+      { status: 502 },
+    )
   }
 }

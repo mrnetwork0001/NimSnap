@@ -27,11 +27,34 @@ const REPLICATE_API = 'https://api.replicate.com/v1'
 /** Hard ceiling on a single generation, so a wedged prediction cannot hang a paid order. */
 const GENERATION_TIMEOUT_MS = 90_000
 
-export class GenerationError extends Error {}
+export class GenerationError extends Error {
+  /**
+   * False when retrying cannot possibly help - a bad token, an empty account.
+   * The route uses this to stop offering a paid user a retry loop against an
+   * error that will fail identically every time.
+   */
+  constructor(
+    message: string,
+    readonly retryable = true,
+  ) {
+    super(message)
+    this.name = 'GenerationError'
+  }
+}
+
+/** True when the server is configured well enough to actually deliver a shot. */
+export function isEngineConfigured(): boolean {
+  return Boolean(process.env.REPLICATE_API_TOKEN)
+}
 
 function token(): string {
   const t = process.env.REPLICATE_API_TOKEN
-  if (!t) throw new GenerationError('REPLICATE_API_TOKEN is not set on the server.')
+  // Operator-facing detail goes to the log; the caller turns this into
+  // something a paying user can actually understand.
+  if (!t) {
+    console.error('[nimsnap] REPLICATE_API_TOKEN is not set - generation cannot run.')
+    throw new GenerationError('The image service is not configured.', false)
+  }
   return t
 }
 
@@ -108,9 +131,19 @@ export async function generateImage(
 
   if (!createRes.ok) {
     const detail = await createRes.text().catch(() => '')
-    if (createRes.status === 401) throw new GenerationError('Replicate rejected the API token.')
-    if (createRes.status === 402) throw new GenerationError('The Replicate account is out of credit.')
-    throw new GenerationError(`Replicate refused the request (${createRes.status}). ${detail.slice(0, 200)}`)
+    console.error(`[nimsnap] Replicate ${createRes.status}: ${detail.slice(0, 300)}`)
+    // 401 and 402 are configuration and billing problems. Retrying is
+    // guaranteed to fail the same way, so they are marked terminal.
+    if (createRes.status === 401) {
+      throw new GenerationError('The image service rejected our credentials.', false)
+    }
+    if (createRes.status === 402) {
+      throw new GenerationError('The image service is out of credit.', false)
+    }
+    if (createRes.status === 422 || createRes.status === 400) {
+      throw new GenerationError('That photo could not be processed. Try a different one.', false)
+    }
+    throw new GenerationError('The image service is unavailable right now.')
   }
 
   let prediction = (await createRes.json()) as Prediction
@@ -121,18 +154,26 @@ export async function generateImage(
       if (prediction.urls?.cancel) {
         await replicate(new URL(prediction.urls.cancel).pathname, { method: 'POST' }).catch(() => {})
       }
-      throw new GenerationError('The transformation timed out. Your payment has not been consumed.')
+      throw new GenerationError('The transformation timed out. Your payment is still credited.')
     }
     await new Promise((resolve) => setTimeout(resolve, 900))
     if (signal?.aborted) throw new GenerationError('Generation was cancelled.')
 
     const pollRes = await replicate(`/predictions/${prediction.id}`, { signal })
-    if (!pollRes.ok) throw new GenerationError(`Lost contact with Replicate (${pollRes.status}).`)
+    if (!pollRes.ok) throw new GenerationError('Lost contact with the image service.')
     prediction = (await pollRes.json()) as Prediction
   }
 
   if (prediction.status !== 'succeeded') {
-    throw new GenerationError(prediction.error || `Generation ${prediction.status}.`)
+    console.error(`[nimsnap] prediction ${prediction.status}: ${prediction.error ?? 'no detail'}`)
+    // A model-side rejection (usually safety) will reject the same photo again.
+    const terminal = /nsfw|safety|flagged|sensitive/i.test(prediction.error ?? '')
+    throw new GenerationError(
+      terminal
+        ? 'That photo was rejected by the image model. Try a different one.'
+        : 'The transformation did not finish. Your payment is still credited.',
+      !terminal,
+    )
   }
 
   const url = firstUrl(prediction.output)

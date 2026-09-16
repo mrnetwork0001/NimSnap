@@ -58,6 +58,8 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
   const [rail, setRail] = useState<Rail | null>(null)
   const [paid, setPaid] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** False when the server says retrying cannot possibly help. */
+  const [errorRetryable, setErrorRetryable] = useState(true)
   const [hint, setHint] = useState<string | null>(null)
   const [result, setResult] = useState<Result | null>(null)
 
@@ -181,6 +183,7 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
   const run = useCallback(async () => {
     if (!file || !presetId || !rail) return
     setError(null)
+    setErrorRetryable(true)
     setStage('working')
     setPaid(false)
 
@@ -248,7 +251,12 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
         signal: controller.signal,
       })
       const genJson = await genRes.json()
-      if (!genRes.ok) throw new Error(genJson.error ?? 'The transformation failed.')
+      if (!genRes.ok) {
+        // A configuration or billing fault fails identically every time, so the
+        // retry affordance must not be offered against it.
+        if (genJson.retryable === false) setErrorRetryable(false)
+        throw new Error(genJson.error ?? 'The transformation failed.')
+      }
 
       // Redeemed - this order can no longer be reused.
       paidOrderRef.current = null
@@ -294,11 +302,11 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
 
   const retryHint = useMemo(
     () =>
-      paidOrderRef.current
+      paidOrderRef.current && errorRetryable
         ? 'Your payment is still credited - tap to retry at no extra cost.'
         : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [error],
+    [error, errorRetryable],
   )
 
   /* ---- Render ----------------------------------------------------------- */

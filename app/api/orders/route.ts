@@ -4,6 +4,7 @@ import { isPresetId } from '@/lib/presets'
 import { quoteShot } from '@/lib/rates'
 import { clientKey, rateLimit } from '@/lib/ratelimit'
 import { DEMO_MODE, NIM_TREASURY, USDT_TREASURY } from '@/lib/config'
+import { isEngineConfigured } from '@/lib/ai'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -33,8 +34,19 @@ export async function POST(req: Request) {
   }
 
   if (!DEMO_MODE && !NIM_TREASURY && !USDT_TREASURY) {
+    console.error('[nimsnap] no treasury configured and demo mode is off.')
     return NextResponse.json(
-      { error: 'This deployment has no treasury configured and demo mode is off.' },
+      { error: 'Payments are not available right now.' },
+      { status: 503 },
+    )
+  }
+
+  // Refuse to take money for something this deployment cannot deliver. Without
+  // this the user pays, then meets a generation failure that no retry can fix.
+  if (!isEngineConfigured()) {
+    console.error('[nimsnap] refusing to sell a shot: REPLICATE_API_TOKEN is not set.')
+    return NextResponse.json(
+      { error: 'NimSnap is not able to generate photos right now. Please try again later.' },
       { status: 503 },
     )
   }
@@ -52,9 +64,7 @@ export async function POST(req: Request) {
       demoMode: DEMO_MODE,
     })
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Could not create the order.' },
-      { status: 503 },
-    )
+    console.error('[nimsnap] order creation failed:', err)
+    return NextResponse.json({ error: 'Could not start the order. Try again.' }, { status: 503 })
   }
 }
