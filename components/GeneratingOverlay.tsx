@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import NimMark from './NimMark'
 
 interface Props {
   presetName: string
@@ -50,9 +51,7 @@ export default function GeneratingOverlay({ presetName, paid, onCancel }: Props)
         <span className="absolute inset-0 animate-pulse-ring rounded-full bg-brand-300/40" />
         <span className="absolute inset-2 animate-spin rounded-full border-2 border-brand-100 border-t-brand-500 [animation-duration:1.4s]" />
         <span className="grid h-16 w-16 place-items-center rounded-full border border-white bg-white shadow-card">
-          <svg viewBox="0 0 24 24" className="h-7 w-7 text-brand-500" aria-hidden="true">
-            <path d="M12 3l1.8 4.9L19 9.6l-4.4 3 .6 5.4-4.2-2.6L6.8 18l.6-5.4L3 9.6l5.2-1.7L12 3z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-          </svg>
+          <NimMark className="h-8 w-8 text-brand-500" framed />
         </span>
       </div>
 

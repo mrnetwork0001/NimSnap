@@ -123,68 +123,105 @@ export async function prepareImage(file: File): Promise<PreparedImage> {
 /**
  * Save the finished image to the device.
  *
- * `<a download>` is unreliable in exactly the place this app runs: in-app
- * webviews (Nimiq Pay, Instagram, X) frequently ignore the attribute entirely,
- * so the click silently does nothing and a paying user is left with no file and
- * no error. Three strategies are tried in order of how good the outcome is.
+ * Two traps make this harder than it looks.
  *
- * Resolves with the strategy that worked so the UI can tell the user what to do
- * next - "saved" needs no follow-up, "shared" hands off to the share sheet, and
- * "opened" means they must press and hold the image themselves.
+ * First, `navigator.share()` requires *transient user activation*. Fetching the
+ * image before calling it burns that window, and share then throws
+ * NotAllowedError - so the blob must already be in hand when the click arrives.
+ * `prefetchImage` is what puts it there.
+ *
+ * Second, `<a download>` is unreliable in in-app webviews (Nimiq Pay, Instagram,
+ * X), which often ignore the attribute so the click silently does nothing.
+ *
+ * So: on touch devices prefer the share sheet, which is the only route that
+ * reliably reaches the camera roll; on desktop prefer a real download, because
+ * a share sheet is a strange answer to a button labelled "Download HD".
  */
 export type SaveOutcome = 'saved' | 'shared' | 'opened'
 
-export async function downloadImage(url: string, filename: string): Promise<SaveOutcome> {
-  let blob: Blob
+/**
+ * Fetch the image ahead of the click so the save path needs no await before
+ * reaching the share sheet. Safe to call repeatedly; failures are swallowed
+ * because this is an optimisation, not the save itself.
+ */
+export async function prefetchImage(url: string): Promise<Blob | null> {
   try {
     const res = await fetch(url)
-    if (!res.ok) throw new ImageError(`The image could not be fetched (${res.status}).`)
-    blob = await res.blob()
-  } catch (err) {
-    if (err instanceof ImageError) throw err
+    if (!res.ok) return null
+    return await res.blob()
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Touch-first devices are where the share sheet is the right answer.
+ *
+ * Three signals rather than one, because getting this wrong on mobile is the
+ * expensive direction: a misdetected phone falls back to `<a download>`, which
+ * in-app webviews silently ignore, and the user who just paid gets nothing. A
+ * misdetected desktop merely sees a share sheet it did not need.
+ */
+function prefersShareSheet(): boolean {
+  if (typeof window === 'undefined') return false
+  const coarse = window.matchMedia?.('(pointer: coarse)').matches ?? false
+  const noHover = window.matchMedia?.('(hover: none)').matches ?? false
+  const touch = (navigator.maxTouchPoints ?? 0) > 0
+  return coarse || noHover || touch
+}
+
+function saveViaAnchor(blob: Blob, filename: string): SaveOutcome {
+  const objectUrl = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = objectUrl
+  anchor.download = filename
+  anchor.rel = 'noopener'
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000)
+  return 'saved'
+}
+
+export async function downloadImage(
+  url: string,
+  filename: string,
+  prefetched?: Blob | null,
+): Promise<SaveOutcome> {
+  // Use the prefetched blob when we have one: fetching here would cost us the
+  // user activation that the share sheet depends on.
+  const blob = prefetched ?? (await prefetchImage(url))
+  if (!blob) {
     throw new ImageError('The image could not be downloaded. Check your connection.')
   }
 
   const file = new File([blob], filename, { type: blob.type || 'image/jpeg' })
+  const nav = navigator as Navigator & {
+    canShare?: (data: { files?: File[] }) => boolean
+    share?: (data: { files?: File[]; title?: string }) => Promise<void>
+  }
 
-  // 1. The native share sheet. On iOS and Android this is the only route that
-  //    reliably reaches the camera roll from inside a webview, and it is what
-  //    people expect on a phone.
-  try {
-    const nav = navigator as Navigator & {
-      canShare?: (data: { files?: File[] }) => boolean
-      share?: (data: { files?: File[]; title?: string }) => Promise<void>
-    }
-    if (nav.share && nav.canShare?.({ files: [file] })) {
+  if (prefersShareSheet() && nav.share && nav.canShare?.({ files: [file] })) {
+    try {
       await nav.share({ files: [file], title: 'NimSnap' })
       return 'shared'
+    } catch (err) {
+      // Dismissing the sheet is a decision, not a failure - do not then shove a
+      // second UI at the user.
+      if (err instanceof Error && err.name === 'AbortError') return 'shared'
+      // Anything else (activation lost, unsupported) falls through to a download.
     }
-  } catch (err) {
-    // A user dismissing the sheet is a decision, not a failure - do not fall
-    // through and shove a second UI at them.
-    if (err instanceof Error && err.name === 'AbortError') return 'shared'
   }
 
-  // 2. A real download, which is right on desktop.
-  const objectUrl = URL.createObjectURL(blob)
   try {
-    const anchor = document.createElement('a')
-    if ('download' in anchor) {
-      anchor.href = objectUrl
-      anchor.download = filename
-      anchor.rel = 'noopener'
-      document.body.appendChild(anchor)
-      anchor.click()
-      anchor.remove()
-      setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000)
-      return 'saved'
-    }
+    if ('download' in document.createElement('a')) return saveViaAnchor(blob, filename)
   } catch {
-    /* fall through to opening it */
+    /* fall through */
   }
 
-  // 3. Last resort: put the image on screen so it can be long-pressed. Worse
-  //    than a real save, but far better than a button that does nothing.
+  // Last resort: show it so it can be long-pressed. Worse than a real save, far
+  // better than a button that does nothing.
+  const objectUrl = URL.createObjectURL(blob)
   const opened = window.open(objectUrl, '_blank', 'noopener')
   if (!opened) {
     URL.revokeObjectURL(objectUrl)

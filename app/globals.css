@@ -216,3 +216,30 @@
     clip-path: inset(0 50% 0 0);
   }
 }
+
+/*
+ * The mark's brackets ease inward and back, the way a lens pulls focus. Paired
+ * with the ring it reads as the app working rather than as a generic spinner.
+ */
+@keyframes ns-frame {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(0.88);
+    opacity: 1;
+  }
+}
+
+.ns-frame {
+  animation: ns-frame 2.2s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ns-frame {
+    animation: none !important;
+  }
+}

@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import CompareSlider from './CompareSlider'
 import PresetIcon from './PresetIcon'
-import { downloadImage, type SaveOutcome } from '@/lib/client/image'
+import { downloadImage, prefetchImage, type SaveOutcome } from '@/lib/client/image'
 import type { StylePreset } from '@/lib/presets'
 
 interface Props {
@@ -46,6 +46,25 @@ export default function ResultView({
   const [saveError, setSaveError] = useState<string | null>(null)
   /** What the last save actually did, so the user is told rather than guessing. */
   const [saveNote, setSaveNote] = useState<string | null>(null)
+  /**
+   * The image, fetched as soon as the result renders.
+   *
+   * navigator.share() needs transient user activation, and awaiting a fetch
+   * inside the click handler burns it. Having the blob ready means the share
+   * sheet is reached while the activation is still live.
+   */
+  const blobRef = useRef<Blob | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    blobRef.current = null
+    prefetchImage(afterSrc).then((b) => {
+      if (!cancelled) blobRef.current = b
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [afterSrc])
 
   const save = async () => {
     setSaving(true)
@@ -57,6 +76,7 @@ export default function ResultView({
       const outcome: SaveOutcome = await downloadImage(
         afterSrc,
         `nimsnap-${preset.id}-${Date.now()}.${safeExt}`,
+        blobRef.current,
       )
       // Only the long-press route needs explaining; the other two are self-evident.
       if (outcome === 'opened') {
@@ -69,18 +89,48 @@ export default function ResultView({
     }
   }
 
-  const share = () => {
-    const url = shareUrl()
-    // Prefer the native sheet: on mobile it can hand the image straight to another
-    // app, which is a far better share than a prefilled tweet.
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      navigator.share({ title: 'NimSnap', text: SHARE_TEXT, url }).catch(() => {})
-      return
-    }
+  const openTweet = (url: string) => {
     const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
       SHARE_TEXT,
     )}&url=${encodeURIComponent(url)}`
     window.open(intent, '_blank', 'noopener,noreferrer')
+  }
+
+  /**
+   * Share the shot.
+   *
+   * On a phone the native sheet can hand the image itself to another app, which
+   * beats a prefilled tweet. Everywhere else, and whenever the sheet fails, we
+   * fall back rather than swallowing the error - previously every failure was
+   * caught and discarded, so the button simply did nothing.
+   */
+  const share = async () => {
+    const url = shareUrl()
+    setSaveError(null)
+    setSaveNote(null)
+
+    const nav = navigator as Navigator & {
+      canShare?: (d: { files?: File[] }) => boolean
+      share?: (d: { files?: File[]; title?: string; text?: string; url?: string }) => Promise<void>
+    }
+
+    if (nav.share) {
+      const blob = blobRef.current
+      const file = blob ? new File([blob], `nimsnap-${preset.id}.jpg`, { type: blob.type }) : null
+      try {
+        if (file && nav.canShare?.({ files: [file] })) {
+          await nav.share({ files: [file], title: 'NimSnap', text: SHARE_TEXT })
+        } else {
+          await nav.share({ title: 'NimSnap', text: SHARE_TEXT, url })
+        }
+        return
+      } catch (err) {
+        // Dismissing the sheet is a choice; anything else means it did not work.
+        if (err instanceof Error && err.name === 'AbortError') return
+      }
+    }
+
+    openTweet(url)
   }
 
   return (
