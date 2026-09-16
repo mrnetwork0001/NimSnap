@@ -1,5 +1,8 @@
+import { PRESETS } from '@/lib/presets'
+import PresetIcon from '@/components/PresetIcon'
+
 /**
- * A still of the studio, framed as a phone — except it does not stay still.
+ * A still of the studio, framed as a phone - except it does not stay still.
  *
  * Hand-built rather than a screenshot: it stays crisp at any density, weighs
  * nothing, and cannot drift out of date when the real UI moves. The divider
@@ -40,7 +43,7 @@ export default function PhoneMock() {
           </div>
 
           <div className="relative mt-3 aspect-[4/5] overflow-hidden rounded-2xl border border-white shadow-lift">
-            {/* After: warm, lit, styled — the full frame sits underneath. */}
+            {/* After: warm, lit, styled - the full frame sits underneath. */}
             <div className="absolute inset-0 bg-gradient-to-br from-brand-100 via-accent-periwinkle/40 to-brand-300/70" />
             <div className="absolute inset-0">
               <Subject variant="after" />
@@ -74,19 +77,16 @@ export default function PhoneMock() {
 
           {/* Style rail, echoing the real picker. */}
           <div className="mt-3 flex gap-1.5">
-            {[
-              ['💼', true],
-              ['🦾', false],
-              ['📸', false],
-              ['🎨', false],
-            ].map(([emoji, active], i) => (
+            {PRESETS.map((p, i) => (
               <span
-                key={i}
-                className={`flex h-8 flex-1 items-center justify-center rounded-xl border text-sm ${
-                  active ? 'border-brand-300 bg-white shadow-ghost' : 'border-white bg-white/60'
+                key={p.id}
+                className={`flex h-8 flex-1 items-center justify-center rounded-xl border ${
+                  i === 0
+                    ? 'border-brand-300 bg-white text-brand-500 shadow-ghost'
+                    : 'border-white bg-white/60 text-ink-soft'
                 }`}
               >
-                {emoji as string}
+                <PresetIcon preset={p.id} className="h-4 w-4" />
               </span>
             ))}
           </div>

@@ -13,7 +13,6 @@ export interface StylePreset {
   id: PresetId
   name: string
   tagline: string
-  emoji: string
   /** Tailwind gradient stops used for the preset card and the pay button. */
   gradient: string
   accent: string
@@ -37,7 +36,6 @@ export const PRESETS: StylePreset[] = [
     id: 'executive',
     name: 'Executive Portrait',
     tagline: 'LinkedIn-ready in one shot',
-    emoji: '💼',
     gradient: 'from-slate-200 via-sky-300 to-nimiq-blue',
     accent: '#0582CA',
     instruction:
@@ -56,7 +54,6 @@ export const PRESETS: StylePreset[] = [
     id: 'cyberpunk',
     name: 'Cyberpunk Hero',
     tagline: 'Your Web3 profile picture',
-    emoji: '🦾',
     gradient: 'from-neon-magenta via-fuchsia-500 to-neon-cyan',
     accent: '#FF3DCB',
     instruction:
@@ -75,7 +72,6 @@ export const PRESETS: StylePreset[] = [
     id: 'ecommerce',
     name: 'E-Commerce Studio',
     tagline: 'Marketplace-grade product shot',
-    emoji: '📸',
     gradient: 'from-amber-200 via-nimiq-gold to-nimiq-orange',
     accent: '#E9B213',
     instruction:
@@ -94,7 +90,6 @@ export const PRESETS: StylePreset[] = [
     id: 'anime',
     name: 'Anime Portrait',
     tagline: 'Studio-quality illustrated you',
-    emoji: '🎨',
     gradient: 'from-violet-300 via-purple-400 to-nimiq-purple',
     accent: '#5F4B8B',
     instruction:

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import CompareSlider from './CompareSlider'
+import PresetIcon from './PresetIcon'
 import { downloadImage } from '@/lib/client/image'
 import type { StylePreset } from '@/lib/presets'
 
@@ -18,7 +19,7 @@ interface Props {
 }
 
 const SHARE_TEXT =
-  'Just turned a photo into a studio shot on NimSnap for $0.10 — paid instantly with Nimiq Pay. No subscription, no signup.'
+  'Just turned a photo into a studio shot on NimSnap for $0.10 - paid instantly with Nimiq Pay. No subscription, no signup.'
 
 /**
  * Nimiq Pay opens mini apps through this deeplink form.
@@ -73,7 +74,10 @@ export default function ResultView({
   return (
     <div className="space-y-5">
       <div className="space-y-1.5 text-center">
-        <p className="eyebrow">{preset.emoji} {preset.name}</p>
+        <p className="eyebrow flex items-center justify-center gap-1.5">
+          <PresetIcon preset={preset.id} className="h-3.5 w-3.5" />
+          {preset.name}
+        </p>
         <h2 className="text-[1.75rem] leading-tight text-ink">Your shot is ready</h2>
         <p className="text-sm text-ink-muted">Drag the handle to compare.</p>
       </div>
@@ -107,7 +111,7 @@ export default function ResultView({
           role="alert"
           className="rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-2.5 text-center text-xs text-amber-900"
         >
-          Save this now — we could not store a permanent copy, so this link
+          Save this now - we could not store a permanent copy, so this link
           expires within the hour.
         </p>
       )}

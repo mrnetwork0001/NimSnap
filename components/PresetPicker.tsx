@@ -1,6 +1,7 @@
 'use client'
 
 import { PRESETS, type PresetId } from '@/lib/presets'
+import PresetIcon from './PresetIcon'
 
 interface Props {
   selected: PresetId | null
@@ -26,7 +27,7 @@ export default function PresetPicker({ selected, onSelect, disabled }: Props) {
       <div
         role="radiogroup"
         aria-label="Style presets"
-        className="no-scrollbar -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 pt-1"
+        className="no-scrollbar -mx-2.5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-2.5 pb-2 pt-1"
       >
         {PRESETS.map((preset) => {
           const active = selected === preset.id
@@ -45,7 +46,9 @@ export default function PresetPicker({ selected, onSelect, disabled }: Props) {
               }`}
             >
               <span className="flex h-full flex-col gap-1.5">
-                <span className="text-2xl leading-none">{preset.emoji}</span>
+                <span className="chip h-9 w-9">
+                  <PresetIcon preset={preset.id} className="h-[1.125rem] w-[1.125rem]" />
+                </span>
                 <span className="mt-1 block text-[0.875rem] font-bold leading-tight text-ink">{preset.name}</span>
                 <span className="block text-[0.6875rem] leading-snug text-ink-muted">{preset.tagline}</span>
                 <span className="mt-auto pt-2 text-[0.625rem] uppercase tracking-[0.14em] text-ink-soft">

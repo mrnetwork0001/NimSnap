@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { PRESETS } from '@/lib/presets'
+import PresetIcon from '@/components/PresetIcon'
 
 /* ------------------------------------------------------------- features --- */
 
@@ -60,7 +61,7 @@ export function Styles() {
             </h2>
             <p className="mt-4 text-[0.9375rem] leading-relaxed text-ink-muted">
               Every AI photo tool wants a subscription. Most people need three headshots a
-              year. NimSnap prices the thing you actually want — one finished photo — and
+              year. NimSnap prices the thing you actually want - one finished photo - and
               charges for exactly that.
             </p>
           </div>
@@ -69,7 +70,9 @@ export function Styles() {
             {PRESETS.map((p) => (
               <div key={p.id} className="rounded-2xl border border-white bg-white/70 p-4 shadow-ghost">
                 <div className="flex items-center gap-2.5">
-                  <span className="text-lg leading-none">{p.emoji}</span>
+                  <span className="chip h-8 w-8">
+                    <PresetIcon preset={p.id} className="h-4 w-4" />
+                  </span>
                   <h3 className="text-[0.875rem] font-bold text-ink">{p.name}</h3>
                 </div>
                 <p className="mt-1.5 text-xs leading-relaxed text-ink-muted">{p.tagline}</p>
@@ -129,7 +132,7 @@ export function PaymentStory() {
           <p className="mt-4 text-[0.9375rem] leading-relaxed text-ink-muted">
             When the app says a payment landed, the server checks the chain itself. It
             looks for a transaction that reached our address, carries this order&rsquo;s id,
-            and moved at least the quoted amount — before a single token is spent on the
+            and moved at least the quoted amount - before a single token is spent on the
             model.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">

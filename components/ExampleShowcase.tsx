@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import CompareSlider from './CompareSlider'
+import PresetIcon from './PresetIcon'
 import { getPreset } from '@/lib/presets'
 import type { ExamplePair } from '@/lib/examples'
 
@@ -13,7 +14,7 @@ interface Props {
  * "See it first" showcase.
  *
  * Shown before the user has uploaded anything, so someone arriving without a
- * wallet — a shared link on a laptop, a judge opening the demo URL — can drag a
+ * wallet - a shared link on a laptop, a judge opening the demo URL - can drag a
  * real before/after instead of meeting a disabled button and a banner telling
  * them they cannot use the app.
  *
@@ -45,7 +46,7 @@ export default function ExampleShowcase({ examples }: Props) {
         />
 
         <p className="mt-3 px-1 text-center text-xs text-ink-muted">
-          {preset ? `${preset.emoji} ${preset.name} — ` : ''}
+          {preset ? `${preset.name} - ` : ''}
           {pair.caption}
         </p>
 
@@ -65,13 +66,14 @@ export default function ExampleShowcase({ examples }: Props) {
                   role="tab"
                   aria-selected={selected}
                   onClick={() => setActive(i)}
-                  className={`rounded-full px-3 py-1.5 text-[0.6875rem] font-bold transition ${
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.6875rem] font-bold transition ${
                     selected
                       ? 'bg-brand-gradient text-white shadow-brand'
                       : 'text-ink-muted hover:text-ink'
                   }`}
                 >
-                  {p?.emoji} {p?.name.split(' ')[0]}
+                  {p && <PresetIcon preset={p.id} className="h-3.5 w-3.5" />}
+                  {p?.name.split(' ')[0]}
                 </button>
               )
             })}
