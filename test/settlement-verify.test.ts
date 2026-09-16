@@ -34,7 +34,7 @@ const order = (over: Record<string, unknown> = {}) =>
     presetId: 'cyberpunk',
     status: 'created',
     createdAt: Date.now(),
-    quote: { usd: 0.1, lunas: LUNAS, nim: 265.65, usdtBaseUnits: '100000', usdPerNim: 0.00037, quotedAt: Date.now(), rateStale: false },
+    quote: { usd: 0.1, lunas: LUNAS, nim: 265.65, nimAvailable: true, usdtBaseUnits: '100000', usdPerNim: 0.00037, quotedAt: Date.now(), rateStale: false },
     ...over,
   }) as never
 

@@ -82,10 +82,16 @@ export async function getNimUsdRate(): Promise<{ usdPerNim: number; stale: boole
 
 export interface Quote {
   usd: number
-  /** Amount to pass to sendBasicTransactionWithData, in Lunas (integer). */
+  /**
+   * Amount to pass to sendBasicTransactionWithData, in Lunas (integer).
+   * Zero when the price feed is unreachable and nothing is cached - the NIM
+   * rail is unavailable in that state, but USDT is unaffected.
+   */
   lunas: number
   /** Same amount expressed in whole NIM, for display. */
   nim: number
+  /** False when no rate could be obtained, so the NIM rail must be hidden. */
+  nimAvailable: boolean
   /** USDT base units (6 decimals), as a decimal string for BigInt-safe transport. */
   usdtBaseUnits: string
   usdPerNim: number
@@ -93,17 +99,37 @@ export interface Quote {
   rateStale: boolean
 }
 
-/** Build a price quote for one shot, in both NIM and USDT. */
+/**
+ * Build a price quote for one shot.
+ *
+ * USDT is priced arithmetically - a dollar is a dollar - so it must never depend
+ * on the NIM price feed. Previously a CoinGecko hiccup on a cold cache threw and
+ * took the whole checkout down, including for a rail that never needed the rate.
+ * Now a missing rate only disables the NIM rail.
+ */
 export async function quoteShot(usd: number = SHOT_PRICE_USD): Promise<Quote> {
-  const { usdPerNim, stale } = await getNimUsdRate()
-  const nim = usd / usdPerNim
-  // Round up: never under-charge because of truncation.
-  const lunas = Math.ceil(nim * LUNAS_PER_NIM)
   const usdtBaseUnits = BigInt(Math.ceil(usd * 10 ** USDT_DECIMALS)).toString()
+
+  let usdPerNim = 0
+  let stale = false
+  let nimAvailable = true
+  try {
+    const rate = await getNimUsdRate()
+    usdPerNim = rate.usdPerNim
+    stale = rate.stale
+  } catch {
+    // No live rate and nothing cached. USDT still works; NIM cannot be quoted.
+    nimAvailable = false
+  }
+
+  // Round up: never under-charge because of truncation.
+  const lunas = nimAvailable ? Math.ceil((usd / usdPerNim) * LUNAS_PER_NIM) : 0
+
   return {
     usd,
     lunas,
     nim: lunas / LUNAS_PER_NIM,
+    nimAvailable,
     usdtBaseUnits,
     usdPerNim,
     quotedAt: Date.now(),

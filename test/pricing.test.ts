@@ -87,15 +87,34 @@ describe('quoteShot', () => {
     expect(stale.lunas).toBe(good.lunas)
   })
 
-  test('refuses to quote from a nonsense rate when there is no cache to fall back on', async () => {
-    vi.stubGlobal('fetch', feed(0))
-    const { quoteShot } = await freshRates()
-    await expect(quoteShot(0.1)).rejects.toThrow(/rate/i)
-  })
-
-  test('refuses to quote when the feed is unreachable and nothing is cached', async () => {
+  test('a dead price feed disables the NIM rail but never blocks USDT', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
     const { quoteShot } = await freshRates()
-    await expect(quoteShot(0.1)).rejects.toThrow()
+    const q = await quoteShot(0.1)
+
+    // USDT is arithmetic - a dollar is a dollar - so it must still be payable.
+    expect(q.usdtBaseUnits).toBe('100000')
+    expect(q.usd).toBe(0.1)
+    // NIM cannot be priced, so the rail is flagged unavailable rather than
+    // quoted at a guess.
+    expect(q.nimAvailable).toBe(false)
+    expect(q.lunas).toBe(0)
+  })
+
+  test('a nonsense rate is treated as no rate, not as a price', async () => {
+    vi.stubGlobal('fetch', feed(0))
+    const { quoteShot } = await freshRates()
+    const q = await quoteShot(0.1)
+    expect(q.nimAvailable).toBe(false)
+    expect(q.lunas).toBe(0)
+    expect(Number.isFinite(q.lunas)).toBe(true)
+  })
+
+  test('a healthy feed marks the NIM rail available', async () => {
+    vi.stubGlobal('fetch', feed(0.001))
+    const { quoteShot } = await freshRates()
+    const q = await quoteShot(0.1)
+    expect(q.nimAvailable).toBe(true)
+    expect(q.lunas).toBeGreaterThan(0)
   })
 })

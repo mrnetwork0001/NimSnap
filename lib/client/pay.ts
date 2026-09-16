@@ -100,6 +100,11 @@ export async function payWithNim(orderId: string, quote: Quote): Promise<PayResu
   if (!provider) {
     throw new PaymentError('Open NimSnap inside Nimiq Pay to pay with NIM.')
   }
+  if (!quote.nimAvailable || quote.lunas <= 0) {
+    throw new PaymentError(
+      'The NIM price is unavailable right now. Try USDT, or try again shortly.',
+    )
+  }
   if (!NIM_TREASURY) {
     throw new PaymentError('This deployment has no NIM treasury configured.')
   }

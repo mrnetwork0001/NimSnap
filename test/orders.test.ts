@@ -7,7 +7,7 @@ import type { Quote } from '@/lib/rates'
  */
 
 const quote: Quote = {
-  usd: 0.1, lunas: 26_565_365, nim: 265.65, usdtBaseUnits: '100000',
+  usd: 0.1, lunas: 26_565_365, nim: 265.65, nimAvailable: true, usdtBaseUnits: '100000',
   usdPerNim: 0.00037643, quotedAt: Date.now(), rateStale: false,
 }
 
@@ -40,7 +40,7 @@ describe('order ids', () => {
 describe('order store', () => {
   test('round-trips a created order', async () => {
     const { createOrder, getOrder } = await freshOrders()
-    const created = await createOrder('cyberpunk', quote)
+    const { order: created } = await createOrder('cyberpunk', quote)
     const found = await getOrder(created.id)
     expect(found?.id).toBe(created.id)
     expect(found?.status).toBe('created')
@@ -61,7 +61,7 @@ describe('order store', () => {
 
   test('applies partial updates without dropping other fields', async () => {
     const { createOrder, updateOrder } = await freshOrders()
-    const o = await createOrder('anime', quote)
+    const { order: o } = await createOrder('anime', quote)
     const updated = await updateOrder(o.id, { status: 'paid', txHash: 'abc' })
     expect(updated?.status).toBe('paid')
     expect(updated?.txHash).toBe('abc')
@@ -78,7 +78,7 @@ describe('order store', () => {
 describe('single-use enforcement', () => {
   test('a consumed order is marked so a replay can be refused', async () => {
     const { createOrder, updateOrder, getOrder } = await freshOrders()
-    const o = await createOrder('executive', quote)
+    const { order: o } = await createOrder('executive', quote)
     await updateOrder(o.id, { status: 'complete', consumedAt: Date.now(), resultUrl: 'https://x/y.jpg' })
     const after = await getOrder(o.id)
     expect(after?.consumedAt).toBeTypeOf('number')
@@ -86,7 +86,7 @@ describe('single-use enforcement', () => {
 
   test('a failed generation leaves the order redeemable, so a retry is free', async () => {
     const { createOrder, updateOrder, getOrder } = await freshOrders()
-    const o = await createOrder('executive', quote)
+    const { order: o } = await createOrder('executive', quote)
     await updateOrder(o.id, { status: 'paid', rail: 'nim', txHash: 'h' })
     await updateOrder(o.id, { status: 'generating' })
     // Generation blew up: route resets to paid and records why.
@@ -103,7 +103,7 @@ describe('expiry', () => {
   test('an unpaid order expires after the payment window', async () => {
     const { createOrder, isExpired } = await freshOrders()
     const { ORDER_TTL_MS } = await import('@/lib/config')
-    const o = await createOrder('anime', quote)
+    const { order: o } = await createOrder('anime', quote)
     expect(isExpired(o)).toBe(false)
     expect(isExpired({ ...o, createdAt: Date.now() - ORDER_TTL_MS - 1_000 })).toBe(true)
   })
@@ -111,8 +111,47 @@ describe('expiry', () => {
   test('an order that was actually paid is never expired out from under the user', async () => {
     const { createOrder, isExpired } = await freshOrders()
     const { ORDER_TTL_MS } = await import('@/lib/config')
-    const o = await createOrder('anime', quote)
+    const { order: o } = await createOrder('anime', quote)
     const oldButPaid = { ...o, status: 'paid' as const, createdAt: Date.now() - ORDER_TTL_MS * 10 }
     expect(isExpired(oldButPaid)).toBe(false)
+  })
+})
+
+describe('claim tokens', () => {
+  test('every order gets a token, and its hash is what is stored', async () => {
+    const { createOrder, hashClaimToken, getOrder } = await freshOrders()
+    const { order, claimToken } = await createOrder('cyberpunk', quote)
+    expect(claimToken).toMatch(/^[0-9a-f]{48}$/)
+    const stored = await getOrder(order.id)
+    // The secret itself is never persisted, only its hash.
+    expect(stored?.claimTokenHash).toBe(hashClaimToken(claimToken))
+    expect(JSON.stringify(stored)).not.toContain(claimToken)
+  })
+
+  test('tokens are unique per order', async () => {
+    const { createOrder } = await freshOrders()
+    const a = await createOrder('anime', quote)
+    const b = await createOrder('anime', quote)
+    expect(a.claimToken).not.toBe(b.claimToken)
+  })
+
+  test('the right token matches and a wrong one does not', async () => {
+    const { createOrder, claimTokenMatches } = await freshOrders()
+    const { order, claimToken } = await createOrder('executive', quote)
+    expect(claimTokenMatches(claimToken, order.claimTokenHash)).toBe(true)
+    expect(claimTokenMatches('0'.repeat(48), order.claimTokenHash)).toBe(false)
+  })
+
+  test('an empty token or a missing hash never matches', async () => {
+    const { claimTokenMatches, hashClaimToken } = await freshOrders()
+    expect(claimTokenMatches('', hashClaimToken('x'))).toBe(false)
+    expect(claimTokenMatches('abc', undefined)).toBe(false)
+  })
+
+  test('knowing the order id alone does not authorise recovery', async () => {
+    const { createOrder, claimTokenMatches } = await freshOrders()
+    const { order } = await createOrder('ecommerce', quote)
+    // The order id is public on-chain; it must be useless as a credential.
+    expect(claimTokenMatches(order.id, order.claimTokenHash)).toBe(false)
   })
 })
