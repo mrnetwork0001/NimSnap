@@ -33,12 +33,29 @@ export interface Order {
   /** Set once the generation is delivered, so the order cannot be reused. */
   consumedAt?: number
   resultUrl?: string
+  /**
+   * Unguessable name for the stored image.
+   *
+   * Deliberately NOT the order id: that id is planted in the public transaction
+   * data so settlement can be verified, which means anyone reading the treasury's
+   * transaction list can harvest it. Naming files after it would let a stranger
+   * enumerate customers' photos.
+   */
+  resultKey?: string
   error?: string
 }
 
 interface Store {
   get(id: string): Promise<Order | null>
   set(order: Order): Promise<void>
+  /**
+   * Atomically bind an on-chain transaction to an order.
+   *
+   * Returns true if this order now owns the transaction, false if a DIFFERENT
+   * order already claimed it. Re-claiming with the same order id must succeed,
+   * so a retry after a failed generation is not mistaken for a replay.
+   */
+  claimTx(txHash: string, orderId: string): Promise<boolean>
 }
 
 /** Serverless-safe store, used when Upstash credentials are present. */
@@ -74,11 +91,24 @@ class RedisStore implements Store {
     const ttlSeconds = Math.ceil((ORDER_TTL_MS * 4) / 1000)
     await this.cmd('SET', `nimsnap:order:${order.id}`, JSON.stringify(order), 'EX', ttlSeconds)
   }
+
+  async claimTx(txHash: string, orderId: string): Promise<boolean> {
+    const key = `nimsnap:tx:${txHash.toLowerCase()}`
+    // SET NX is the atomic primitive: it succeeds only if nobody holds the key,
+    // which settles the race between two concurrent requests replaying one hash.
+    const won = await this.cmd<string | null>('SET', key, orderId, 'NX')
+    if (won) return true
+    // Already held. Ours only if the holder is this same order.
+    const holder = await this.cmd<string | null>('GET', key)
+    return holder === orderId
+  }
 }
 
 /** Default store. Survives for the lifetime of the server process. */
 class MemoryStore implements Store {
   private map = new Map<string, Order>()
+  /** Transaction hashes already spent, so one payment cannot fund many orders. */
+  private claimedTx = new Map<string, { orderId: string; at: number }>()
 
   async get(id: string): Promise<Order | null> {
     this.sweep()
@@ -89,10 +119,26 @@ class MemoryStore implements Store {
     this.map.set(order.id, order)
   }
 
+  async claimTx(txHash: string, orderId: string): Promise<boolean> {
+    const key = txHash.toLowerCase()
+    const holder = this.claimedTx.get(key)
+    if (holder === undefined) {
+      this.claimedTx.set(key, { orderId, at: Date.now() })
+      return true
+    }
+    return holder.orderId === orderId
+  }
+
   private sweep(): void {
     const cutoff = Date.now() - ORDER_TTL_MS * 4
     for (const [id, order] of this.map) {
       if (order.createdAt < cutoff) this.map.delete(id)
+    }
+    // Spent hashes are swept on a much longer horizon than orders: a hash that
+    // is forgotten too early becomes replayable again.
+    const txCutoff = Date.now() - ORDER_TTL_MS * 96
+    for (const [hash, claim] of this.claimedTx) {
+      if (claim.at < txCutoff) this.claimedTx.delete(hash)
     }
   }
 }
@@ -109,12 +155,21 @@ const store: Store = globalForStore.__nimsnapStore ?? makeStore()
 if (process.env.NODE_ENV !== 'production') globalForStore.__nimsnapStore = store
 
 /**
- * Mint an order id. 8 random bytes rendered as hex — compact enough to sit in a
+ * Mint an order id. 8 random bytes rendered as hex - compact enough to sit in a
  * Nimiq transaction's 64-byte data field, and unguessable so an attacker cannot
  * fish for someone else's paid order.
  */
 export function mintOrderId(): string {
   return randomBytes(8).toString('hex')
+}
+
+/**
+ * Mint the storage name for a finished image. 16 random bytes, never derived
+ * from anything public, so a stored result cannot be found without being given
+ * its URL.
+ */
+export function mintResultKey(): string {
+  return randomBytes(16).toString('hex')
 }
 
 export async function createOrder(presetId: PresetId, quote: Quote): Promise<Order> {
@@ -140,6 +195,22 @@ export async function updateOrder(id: string, patch: Partial<Order>): Promise<Or
   const next = { ...current, ...patch }
   await store.set(next)
   return next
+}
+
+/**
+ * Bind an on-chain transaction to this order, once and for all.
+ *
+ * ERC-20 transfers carry no memo, so a USDT receipt proves only that *someone*
+ * paid the treasury - not which order it was for. Without this, one $0.10
+ * transfer could be replayed against unlimited fresh orders, each costing us a
+ * paid generation. The NIM rail needs no such guard: its order id is planted
+ * inside the transaction, so a given transfer can only ever match one order.
+ *
+ * Returns false when a different order already spent this transaction.
+ */
+export async function claimPaymentTx(txHash: string, orderId: string): Promise<boolean> {
+  if (!txHash) return false
+  return store.claimTx(txHash, orderId)
 }
 
 export function isExpired(order: Order): boolean {

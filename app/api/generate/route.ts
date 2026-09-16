@@ -1,7 +1,15 @@
 import { NextResponse } from 'next/server'
 import { generateImage, GenerationError } from '@/lib/ai'
 import { persistResult } from '@/lib/storage'
-import { getOrder, isExpired, updateOrder, type Order, type PaymentRail } from '@/lib/orders'
+import {
+  claimPaymentTx,
+  getOrder,
+  mintResultKey,
+  isExpired,
+  updateOrder,
+  type Order,
+  type PaymentRail,
+} from '@/lib/orders'
 import { getPreset } from '@/lib/presets'
 import { verifyNimPayment, verifyUsdtPayment } from '@/lib/settlement'
 import { clientKey, rateLimit } from '@/lib/ratelimit'
@@ -52,7 +60,7 @@ function isDataUri(value: unknown): value is string {
  * Verify payment, then transform the photo.
  *
  * Ordering matters: we confirm the money moved *before* spending anything on the
- * model, and we mark the order consumed only after a result exists — so a failed
+ * model, and we mark the order consumed only after a result exists - so a failed
  * generation leaves the user's paid order still redeemable rather than burning it.
  */
 export async function POST(req: Request) {
@@ -119,6 +127,24 @@ export async function POST(req: Request) {
       )
     }
     settledTxHash = settlement.txHash
+
+    // A USDT receipt proves somebody paid the treasury, not which order it was
+    // for, so the transaction is bound to this order here - once. Without this,
+    // one transfer could be replayed against unlimited fresh orders. Claiming is
+    // idempotent for the same order, so a retry after a failed generation is
+    // still free.
+    if (rail === 'usdt' && settledTxHash) {
+      const claimed = await claimPaymentTx(settledTxHash, order.id)
+      if (!claimed) {
+        return NextResponse.json(
+          {
+            error: 'That payment has already been used for another shot.',
+            stage: 'payment',
+          },
+          { status: 409 },
+        )
+      }
+    }
   }
 
   await updateOrder(order.id, {
@@ -132,13 +158,17 @@ export async function POST(req: Request) {
     const modelUrl = await generateImage(preset, image, req.signal)
 
     // The model's output URL expires within the hour, so copy the image
-    // somewhere durable before handing it over — the user paid for a file they
+    // somewhere durable before handing it over - the user paid for a file they
     // can come back to, not a link that rots.
-    const stored = await persistResult(modelUrl, order.id)
+    // Named with a fresh random key rather than the order id: that id is public
+    // on-chain, so reusing it would let anyone enumerate customers' photos.
+    const resultKey = order.resultKey ?? mintResultKey()
+    const stored = await persistResult(modelUrl, resultKey)
 
     await updateOrder(order.id, {
       status: 'complete',
       resultUrl: stored.url,
+      resultKey,
       consumedAt: Date.now(),
     })
     return NextResponse.json({
