@@ -152,7 +152,7 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
       const genJson = await genRes.json()
       if (!genRes.ok) throw new Error(genJson.error ?? 'The transformation failed.')
 
-      // Redeemed — this order can no longer be reused.
+      // Redeemed - this order can no longer be reused.
       paidOrderRef.current = null
       setResult({
         url: genJson.resultUrl as string,
@@ -178,7 +178,7 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
   const retryHint = useMemo(
     () =>
       paidOrderRef.current
-        ? 'Your payment is still credited — tap to retry at no extra cost.'
+        ? 'Your payment is still credited - tap to retry at no extra cost.'
         : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [error],
@@ -189,7 +189,7 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
   if (stage === 'result' && result && file) {
     const resultPreset = getPreset(result.presetId)
     return (
-      <div className="mx-auto w-full max-w-md px-5 pb-12">
+      <div className="mx-auto w-full max-w-md px-2.5 pb-12">
         {resultPreset && (
           <ResultView
             beforeSrc={file.dataUri}
@@ -216,7 +216,7 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
 
   return (
     <>
-      <div className="mx-auto grid w-full max-w-md gap-5 px-5 pb-44 lg:max-w-5xl lg:grid-cols-2 lg:items-start lg:gap-8 lg:pb-28">
+      <div className="mx-auto grid w-full max-w-md gap-5 px-2.5 pb-44 lg:max-w-5xl lg:grid-cols-2 lg:items-start lg:gap-8 lg:pb-28">
         <div className="min-w-0 space-y-5">
           <HostBanner rails={rails} />
 

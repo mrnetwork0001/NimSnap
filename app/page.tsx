@@ -12,13 +12,12 @@ export default function Home() {
       <header className="pt-safe sticky top-0 z-40 border-b border-white/60 bg-haze-400/70 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-3">
           <Wordmark />
-          <nav className="hidden items-center gap-7 text-[0.8125rem] font-semibold text-ink-muted md:flex">
+          {/* Nav sits right; the studio CTA lives in the hero and the closing
+              card, so the header does not repeat it a third time. */}
+          <nav className="flex items-center gap-6 text-[0.8125rem] font-semibold text-ink-muted sm:gap-7">
             <Link href="#how" className="transition hover:text-ink">How it works</Link>
             <Link href="#styles" className="transition hover:text-ink">Styles</Link>
           </nav>
-          <Link href="/app" className="btn-primary px-5 py-2.5 text-[0.8125rem]">
-            Open the studio
-          </Link>
         </div>
       </header>
 

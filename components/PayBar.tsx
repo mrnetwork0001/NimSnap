@@ -42,7 +42,7 @@ export default function PayBar({ quote, rails, rail, onRailChange, onPay, ready,
           : null
 
   return (
-    <div className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-white/70 bg-haze-400/80 px-5 pt-3 backdrop-blur-xl">
+    <div className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t border-white/70 bg-haze-400/80 px-2.5 pt-3 backdrop-blur-xl">
       <div className="mx-auto w-full max-w-md space-y-2.5 lg:max-w-lg">
         {rails.length > 1 && (
           <div role="radiogroup" aria-label="Payment method" className="flex gap-1 rounded-full border border-white bg-white/70 p-1 shadow-ghost">
