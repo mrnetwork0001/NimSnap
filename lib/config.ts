@@ -65,6 +65,25 @@ export const ORDER_TTL_MS = 15 * 60 * 1000
  */
 export const SETTLEMENT_GRACE_MS = 24 * 60 * 60 * 1000
 
+/**
+ * How long the platform will let a single request run, in milliseconds.
+ *
+ * This is a property of where you deploy, not of the app. Vercel's Hobby plan
+ * kills a function at 60s and Pro at 300s; a container has no limit worth
+ * worrying about. The default is the Hobby ceiling because being killed
+ * mid-generation after the user has paid is the worst outcome, and overshooting
+ * it produces no JSON at all - the client just sees a parse error.
+ *
+ * Raise it if your platform allows more (Vercel Pro: 300000).
+ */
+export const FUNCTION_BUDGET_MS = Number(process.env.FUNCTION_BUDGET_MS ?? 60_000)
+
+/**
+ * Headroom left for reading the request, writing the order, and serialising the
+ * response, so we always finish on our own terms rather than being cut off.
+ */
+export const BUDGET_RESERVE_MS = 6_000
+
 /** Max upload we accept, pre-compression. Mobile cameras routinely emit 8-12MB. */
 export const MAX_UPLOAD_BYTES = 12 * 1024 * 1024
 

@@ -220,6 +220,15 @@ Production build: **97.1 kB** first load JS.
 
 ---
 
+## Deploying
+
+See [DEPLOY.md](DEPLOY.md) for Vercel settings and the full environment list.
+
+Two things are easy to miss on serverless and both silently break the paid flow:
+orders must be moved to Upstash (memory is not shared between invocations, so a
+paid order 404s), and results need an S3-compatible bucket (the filesystem is
+read-only, so the app falls back to a link that expires within the hour).
+
 ## Result storage
 
 Replicate deletes prediction output after an hour - their docs are explicit that

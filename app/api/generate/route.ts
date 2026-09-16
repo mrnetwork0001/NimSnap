@@ -13,11 +13,17 @@ import {
 import { getPreset } from '@/lib/presets'
 import { verifyNimPayment, verifyUsdtPayment } from '@/lib/settlement'
 import { clientKey, rateLimit } from '@/lib/ratelimit'
-import { DEMO_MODE, MAX_UPLOAD_BYTES } from '@/lib/config'
+import { BUDGET_RESERVE_MS, DEMO_MODE, FUNCTION_BUDGET_MS, MAX_UPLOAD_BYTES } from '@/lib/config'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-export const maxDuration = 120
+/**
+ * Must not exceed what the platform actually permits. Vercel Hobby caps at 60s
+ * and silently kills anything longer - which, after a payment, means no JSON
+ * response and a user who paid for nothing. Raise alongside FUNCTION_BUDGET_MS
+ * only if your plan allows it.
+ */
+export const maxDuration = 60
 
 /**
  * How long to keep re-checking the chain before giving up. A Nimiq block is
@@ -31,8 +37,11 @@ async function awaitSettlement(
   order: Order,
   rail: PaymentRail,
   txHash: string | undefined,
+  budgetMs: number,
 ): Promise<{ settled: boolean; txHash?: string; reason?: string }> {
-  const deadline = Date.now() + SETTLEMENT_WINDOW_MS
+  // Never spend the whole request budget waiting for the chain - the model still
+  // has to run afterwards, and being killed mid-generation wastes the payment.
+  const deadline = Date.now() + Math.min(SETTLEMENT_WINDOW_MS, budgetMs)
   let last = { settled: false, reason: 'Payment not seen yet' } as {
     settled: boolean
     txHash?: string
@@ -64,6 +73,10 @@ function isDataUri(value: unknown): value is string {
  * generation leaves the user's paid order still redeemable rather than burning it.
  */
 export async function POST(req: Request) {
+  // One deadline for the whole request, so every stage finishes on our terms
+  // rather than the platform's.
+  const requestDeadline = Date.now() + FUNCTION_BUDGET_MS - BUDGET_RESERVE_MS
+
   if (!rateLimit(`gen:${clientKey(req)}`, 12, 60_000)) {
     return NextResponse.json({ error: 'Too many generations. Slow down a moment.' }, { status: 429 })
   }
@@ -126,7 +139,9 @@ export async function POST(req: Request) {
     // Already verified on a previous attempt that failed during generation.
     settledTxHash = order.txHash
   } else {
-    const settlement = await awaitSettlement(order, rail, txHash)
+    // Leave at least 15s for the model, however slow settlement is.
+    const settlementBudget = Math.max(3_000, requestDeadline - Date.now() - 15_000)
+    const settlement = await awaitSettlement(order, rail, txHash, settlementBudget)
     if (!settlement.settled) {
       console.error(`[nimsnap] settlement failed for ${order.id}: ${settlement.reason}`)
       // settlement.reason is written for an operator ("Nimiq indexer responded
@@ -169,7 +184,13 @@ export async function POST(req: Request) {
 
   // ---- 2. Spend the paid credit on the model. -----------------------------
   try {
-    const modelUrl = await generateImage(preset, image, req.signal)
+    const modelUrl = await generateImage(
+      preset,
+      image,
+      req.signal,
+      // Whatever is left, minus room to persist the result and reply.
+      Math.max(5_000, requestDeadline - Date.now() - 8_000),
+    )
 
     // The model's output URL expires within the hour, so copy the image
     // somewhere durable before handing it over - the user paid for a file they

@@ -24,8 +24,12 @@ const MODELS: Record<EngineId, string> = {
 
 const REPLICATE_API = 'https://api.replicate.com/v1'
 
-/** Hard ceiling on a single generation, so a wedged prediction cannot hang a paid order. */
-const GENERATION_TIMEOUT_MS = 90_000
+/**
+ * Fallback ceiling on a single generation. The caller normally passes a deadline
+ * derived from the platform's own request budget, which matters most on
+ * serverless, where overrunning means being killed with no response at all.
+ */
+const DEFAULT_GENERATION_TIMEOUT_MS = 90_000
 
 export class GenerationError extends Error {
   /**
@@ -117,14 +121,17 @@ export async function generateImage(
   preset: StylePreset,
   imageDataUri: string,
   signal?: AbortSignal,
+  budgetMs?: number,
 ): Promise<string> {
-  const deadline = Date.now() + GENERATION_TIMEOUT_MS
+  const budget = Math.max(5_000, budgetMs ?? DEFAULT_GENERATION_TIMEOUT_MS)
+  const deadline = Date.now() + budget
 
   const createRes = await replicate(`/models/${MODELS[ENGINE]}/predictions`, {
     method: 'POST',
-    // Ask Replicate to hold the connection open briefly and return a finished
-    // prediction if it completes within the window.
-    headers: { prefer: 'wait=55' },
+    // Hold the connection open so a short generation comes back on this request
+    // with no polling at all - but never longer than our own budget, or the
+    // platform kills us while Replicate is still holding the line.
+    headers: { prefer: `wait=${Math.max(5, Math.min(55, Math.floor(budget / 1000) - 5))}` },
     body: JSON.stringify({ input: buildInput(preset, imageDataUri) }),
     signal,
   })
