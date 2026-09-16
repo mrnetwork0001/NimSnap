@@ -1,0 +1,49 @@
+# NimSnap - systemd unit
+#
+# Scoped entirely to this app. It adds a service and touches nothing else on the
+# box: its own user, its own directory, its own port, bound to loopback so it
+# cannot collide with whatever already answers on 80/443.
+#
+# Install:  sudo cp deploy/nimsnap.service /etc/systemd/system/
+#           sudo systemctl daemon-reload
+#           sudo systemctl enable --now nimsnap
+#
+# NOTE: `systemctl daemon-reload` re-reads unit files. It does NOT restart or
+# disturb any running service.
+
+[Unit]
+Description=NimSnap - pay-per-shot AI photo studio
+After=network-ok.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nimsnap
+Group=nimsnap
+WorkingDirectory=/srv/nimsnap
+EnvironmentFile=/srv/nimsnap/.env.local
+
+# Loopback only. The reverse proxy in front is what faces the internet.
+Environment=HOSTNAME=127.0.0.1
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/env node node_modules/next/dist/bin/next start -H 127.0.0.1 -p ${PORT}
+
+Restart=on-failure
+RestartSec=5
+
+# Keep the app boxed in, so a bug here cannot reach the rest of the machine.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/nimsnap/.data /srv/nimsnap/.next
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+StandardOutput=append:/var/log/nimsnap/app.log
+StandardError=append:/var/log/nimsnap/error.log
+
+[Install]
+WantedBy=multi-user.target

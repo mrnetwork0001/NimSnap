@@ -1,0 +1,20 @@
+# NimSnap - Caddy
+#
+# ADDITIVE ONLY. Append this block to the existing Caddyfile; do not replace it.
+# Caddy obtains and renews the TLS certificate on its own, so there is no certbot
+# step. Validate and apply with:
+#
+#   sudo caddy validate --config /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy      # reload, never restart
+
+nimsnap.xyz, www.nimsnap.xyz {
+	reverse_proxy 127.0.0.1:__PORT__ {
+		header_up X-Real-IP {remote_host}
+	}
+
+	request_body {
+		max_size 20MB
+	}
+
+	header /results/* Cache-Control "public, max-age=31536000, immutable"
+}
