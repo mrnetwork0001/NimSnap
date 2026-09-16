@@ -48,4 +48,28 @@ export const EXAMPLE_MANIFEST: ExamplePair[] = [
     after: '/examples/anime-after.jpg',
     caption: 'Portrait to illustrated character',
   },
+  {
+    presetId: 'restore',
+    before: '/examples/restore-before.jpg',
+    after: '/examples/restore-after.jpg',
+    caption: 'Faded print to clean photograph',
+  },
+  {
+    presetId: 'passport',
+    before: '/examples/passport-before.jpg',
+    after: '/examples/passport-after.jpg',
+    caption: 'Snapshot to passport-style ID photo',
+  },
+  {
+    presetId: 'sweep',
+    before: '/examples/sweep-before.jpg',
+    after: '/examples/sweep-after.jpg',
+    caption: 'Desk clutter to coloured studio sweep',
+  },
+  {
+    presetId: 'pet',
+    before: '/examples/pet-before.jpg',
+    after: '/examples/pet-after.jpg',
+    caption: 'Phone snap to framed pet portrait',
+  },
 ]

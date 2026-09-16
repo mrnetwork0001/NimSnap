@@ -75,9 +75,10 @@ export default function PhoneMock() {
             </span>
           </div>
 
-          {/* Style rail, echoing the real picker. */}
+          {/* Style rail, echoing the real picker. Capped at four: the mock is a
+              phone-width still, and eight chips would shrink to illegibility. */}
           <div className="mt-3 flex gap-1.5">
-            {PRESETS.map((p, i) => (
+            {PRESETS.slice(0, 4).map((p, i) => (
               <span
                 key={p.id}
                 className={`flex h-8 flex-1 items-center justify-center rounded-xl border ${

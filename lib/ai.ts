@@ -154,15 +154,48 @@ export async function generateImage(
   const budget = Math.max(5_000, budgetMs ?? DEFAULT_GENERATION_TIMEOUT_MS)
   const deadline = Date.now() + budget
 
-  const createRes = await replicate(`/models/${MODELS[ENGINE]}/predictions`, {
-    method: 'POST',
-    // Hold the connection open so a short generation comes back on this request
-    // with no polling at all - but never longer than our own budget, or the
-    // platform kills us while Replicate is still holding the line.
-    headers: { prefer: `wait=${Math.max(5, Math.min(55, Math.floor(budget / 1000) - 5))}` },
-    body: JSON.stringify({ input: buildInput(preset, imageDataUri) }),
-    signal,
-  })
+  const body = JSON.stringify({ input: buildInput(preset, imageDataUri) })
+  const preferWait = `wait=${Math.max(5, Math.min(55, Math.floor(budget / 1000) - 5))}`
+
+  const createOnce = () =>
+    replicate(`/models/${MODELS[ENGINE]}/predictions`, {
+      method: 'POST',
+      // Hold the connection open so a short generation comes back on this
+      // request with no polling at all - but never longer than our own budget,
+      // or the platform kills us while Replicate is still holding the line.
+      headers: { prefer: preferWait },
+      body,
+      signal,
+    })
+
+  let createRes = await createOnce()
+
+  // Replicate throttles hard on low-credit accounts (6/min, burst of 1), so two
+  // users arriving together is enough to trip it. That is a queue, not a
+  // failure: wait the interval it names and try once more before giving up.
+  if (createRes.status === 429) {
+    const detail = await createRes.clone().text().catch(() => '')
+    let retryAfterMs = 5_000
+    try {
+      const parsed = JSON.parse(detail) as { retry_after?: number }
+      if (typeof parsed.retry_after === 'number') retryAfterMs = parsed.retry_after * 1000
+    } catch {
+      /* keep the default */
+    }
+    // Only wait if doing so still leaves time to generate afterwards.
+    const spare = deadline - Date.now() - 20_000
+    if (spare > retryAfterMs) {
+      console.warn(`[nimsnap] Replicate throttled; retrying in ${retryAfterMs}ms`)
+      await new Promise((r) => setTimeout(r, retryAfterMs + 500))
+      if (signal?.aborted) throw new GenerationError('Generation was cancelled.')
+      createRes = await createOnce()
+    }
+    if (createRes.status === 429) {
+      throw new GenerationError(
+        'NimSnap is busy right now. Your payment is credited - try again in a few seconds.',
+      )
+    }
+  }
 
   if (!createRes.ok) {
     const detail = await createRes.text().catch(() => '')

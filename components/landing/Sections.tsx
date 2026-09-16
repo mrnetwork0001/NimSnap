@@ -6,8 +6,8 @@ import PresetIcon from '@/components/PresetIcon'
 
 const FEATURES = [
   {
-    title: 'Four studio styles',
-    body: 'Executive portrait, Web3 avatar, product shot, anime. Each one tuned to keep the subject recognisable.',
+    title: 'Eight studio styles',
+    body: 'Headshots, avatars, product shots, restoration, passport photos and more. Each one tuned for the subject it is meant for.',
     icon: (
       <path d="M4 7a2 2 0 012-2h2l1-1.5h6L20 5h-2a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7z" fill="none" stroke="currentColor" strokeWidth="1.7" />
     ),
@@ -66,6 +66,8 @@ export function Styles() {
             </p>
           </div>
 
+          {/* Two columns even on desktop: eight cards in four columns would be
+              too dense to read beside the heading. */}
           <div className="grid gap-3 sm:grid-cols-2">
             {PRESETS.map((p) => (
               <div key={p.id} className="rounded-2xl border border-white bg-white/70 p-4 shadow-ghost">
@@ -90,7 +92,7 @@ export function Styles() {
 
 const STEPS = [
   { n: '01', title: 'Upload', body: 'A selfie, a product, your pet. The photo is resized on your device before it is sent.' },
-  { n: '02', title: 'Pick a style', body: 'Four presets, each with prompts tuned for the subject it is meant for.' },
+  { n: '02', title: 'Pick a style', body: 'Eight presets, each with prompts tuned for the subject it is meant for.' },
   { n: '03', title: 'Pay $0.10', body: 'Nimiq Pay raises its own confirmation sheet. One tap, settled in about a second.' },
   { n: '04', title: 'Compare and keep', body: 'Drag the before/after slider, then download in HD. The file is stored, not rented.' },
 ]
