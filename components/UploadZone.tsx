@@ -11,17 +11,25 @@ interface Props {
 /**
  * Photo intake.
  *
- * Two entry points on purpose: `capture="environment"` opens the camera straight
- * away on mobile, while the plain picker covers the library and desktop. Both
- * feed the same handler. Drag-and-drop is wired up for desktop.
+ * Two entry points on purpose: `capture` opens the camera straight away on
+ * mobile, while the plain picker covers the library and desktop. Both feed the
+ * same handler. Drag-and-drop is wired up for desktop.
+ *
+ * `capture="user"` rather than "environment": three of the four presets are
+ * portrait styles, so the front camera is the right default. Either way the user
+ * can flip it inside the camera UI.
  */
 export default function UploadZone({ previewUrl, onFile, disabled }: Props) {
   const pickerRef = useRef<HTMLInputElement>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
 
-  const take = (files: FileList | null) => {
+  const take = (files: FileList | null, input?: HTMLInputElement | null) => {
     const file = files?.[0]
+    // Clearing the input is what makes picking the SAME photo twice work. The
+    // change event does not fire when the value is unchanged, so after an error
+    // the obvious retry - pick that photo again - was a silent no-op.
+    if (input) input.value = ''
     if (file) onFile(file)
   }
 
@@ -39,8 +47,8 @@ export default function UploadZone({ previewUrl, onFile, disabled }: Props) {
       }}
       className={`card overflow-hidden transition ${dragOver ? 'ring-2 ring-brand-400' : ''}`}
     >
-      <input ref={pickerRef} type="file" accept="image/*" className="sr-only" onChange={(e) => take(e.target.files)} />
-      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => take(e.target.files)} />
+      <input ref={pickerRef} type="file" accept="image/*" className="sr-only" onChange={(e) => take(e.target.files, e.target)} />
+      <input ref={cameraRef} type="file" accept="image/*" capture="user" className="sr-only" onChange={(e) => take(e.target.files, e.target)} />
 
       {previewUrl ? (
         <div className="relative">

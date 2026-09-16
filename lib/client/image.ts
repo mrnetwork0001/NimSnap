@@ -34,28 +34,62 @@ function loadBitmap(file: File): Promise<ImageBitmap | HTMLImageElement> {
   return loadViaElement(file)
 }
 
+/** iPhone's default capture format, which most browsers cannot decode. */
+function looksLikeHeic(file: File): boolean {
+  return (
+    /heic|heif/i.test(file.type) ||
+    (/\.(heic|heif)$/i.test(file.name) && !file.type.startsWith('image/jpeg'))
+  )
+}
+
+const HEIC_ADVICE =
+  'iPhone photos saved as HEIC cannot be read here. In Settings > Camera > Formats ' +
+  'choose "Most Compatible", or take a screenshot of the photo and use that.'
+
 function loadViaElement(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)
     const img = new Image()
+    // A decode that never fires load or error would hang the app forever.
+    const timer = setTimeout(() => {
+      URL.revokeObjectURL(url)
+      reject(new ImageError('That photo took too long to open. Try a smaller one.'))
+    }, 20_000)
     img.onload = () => {
+      clearTimeout(timer)
       URL.revokeObjectURL(url)
       resolve(img)
     }
     img.onerror = () => {
+      clearTimeout(timer)
       URL.revokeObjectURL(url)
-      reject(new ImageError('That file could not be read as an image.'))
+      // Naming the real cause is the difference between a dead end and a fix
+      // the user can actually apply.
+      reject(new ImageError(looksLikeHeic(file) ? HEIC_ADVICE : 'That file could not be read as an image.'))
     }
     img.src = url
   })
 }
 
 export async function prepareImage(file: File): Promise<PreparedImage> {
-  if (!file.type.startsWith('image/')) {
+  // Some pickers hand over a blank or generic MIME type for a perfectly good
+  // photo, so the extension gets a say before anything is rejected.
+  const looksImage =
+    file.type.startsWith('image/') ||
+    /\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(file.name) ||
+    file.type === ''
+  if (!looksImage) {
     throw new ImageError('Please choose an image file.')
   }
-  if (file.size > MAX_UPLOAD_BYTES * 4) {
-    throw new ImageError('That photo is far too large. Try one under 40MB.')
+  if (file.size === 0) {
+    throw new ImageError('That file is empty. Try picking the photo again.')
+  }
+  const maxBytes = MAX_UPLOAD_BYTES * 4
+  if (file.size > maxBytes) {
+    throw new ImageError(
+      `That photo is too large (${Math.round(file.size / 1e6)}MB). ` +
+        `The limit is ${Math.round(maxBytes / 1e6)}MB.`,
+    )
   }
 
   const bitmap = await loadBitmap(file)
@@ -64,8 +98,10 @@ export async function prepareImage(file: File): Promise<PreparedImage> {
   if (!srcW || !srcH) throw new ImageError('That image appears to be empty.')
 
   const scale = Math.min(1, MAX_EDGE / Math.max(srcW, srcH))
-  const width = Math.round(srcW * scale)
-  const height = Math.round(srcH * scale)
+  // An extreme aspect ratio can round the short edge to zero, which produces a
+  // blank "data:," URI that is only rejected after the user has paid.
+  const width = Math.max(1, Math.round(srcW * scale))
+  const height = Math.max(1, Math.round(srcH * scale))
 
   const canvas = document.createElement('canvas')
   canvas.width = width
