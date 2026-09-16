@@ -250,11 +250,13 @@ someone the thing they bought.
 
 Stated plainly rather than left to be discovered:
 
-- **The `data` field encoding is confirmed by construction, not by observation.**
-  Indexers may return a transaction's data as raw hex or as decoded UTF-8, and no
-  recent mainnet transaction carrying a data payload was available to sample.
-  `dataCarriesOrderId` accepts both representations, so either works - but this
-  is the one thing to confirm against a live payment before judging day.
+- ~~The `data` field encoding is unverified.~~ **Resolved.** A mainnet
+  transaction carrying a data payload was observed on the live treasury: the
+  indexer returns the field as a **hex string**, not decoded text. So a 16-char
+  order id arrives as 32 hex characters and only matches after decoding, which
+  is the path `dataCarriesOrderId` takes. Locked down in
+  `test/encoding-mainnet.test.ts`, including a real staking payload as a
+  negative case.
 - **Order storage defaults to memory.** Correct for `next start` on a container
   or VM. On a serverless platform, set `UPSTASH_REDIS_REST_URL` /
   `UPSTASH_REDIS_REST_TOKEN` or orders will not survive between instances.
