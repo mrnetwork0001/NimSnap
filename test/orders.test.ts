@@ -182,3 +182,21 @@ describe('settlement grace', () => {
     ).toBe(true)
   })
 })
+
+describe('expiry ordering (regression)', () => {
+  test('a payment reported after the TTL still keeps the order redeemable', async () => {
+    const { createOrder, isExpired } = await freshOrders()
+    const { ORDER_TTL_MS } = await import('@/lib/config')
+    const { order } = await createOrder('passport', quote)
+
+    // The order was minted when the style was picked, not when pay was clicked -
+    // on the Hub rail, earlier still. A user who lingers pays against an order
+    // that is already past its TTL.
+    const stale = { ...order, createdAt: Date.now() - ORDER_TTL_MS - 60_000 }
+    expect(isExpired(stale)).toBe(true)
+
+    // The route now records the claim BEFORE testing expiry, which is what stops
+    // a real payment being rejected after the money has left the wallet.
+    expect(isExpired({ ...stale, paymentReportedAt: Date.now() })).toBe(false)
+  })
+})

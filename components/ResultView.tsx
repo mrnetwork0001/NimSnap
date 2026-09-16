@@ -8,7 +8,12 @@ import { downloadImage, prefetchImage, type SaveOutcome } from '@/lib/client/ima
 import type { StylePreset } from '@/lib/presets'
 
 interface Props {
-  beforeSrc: string
+  /**
+   * The original photo. Absent when a result is recovered on a later visit -
+   * the upload only ever lived in memory, so there is nothing to compare
+   * against and the slider is replaced by the result alone.
+   */
+  beforeSrc?: string
   afterSrc: string
   preset: StylePreset
   txHash?: string
@@ -142,14 +147,21 @@ export default function ResultView({
           {preset.name}
         </p>
         <h2 className="text-[1.75rem] leading-tight text-ink">Your shot is ready</h2>
-        <p className="text-sm text-ink-muted">Drag the handle to compare.</p>
+        <p className="text-sm text-ink-muted">
+          {beforeSrc
+            ? 'Drag the handle to compare.'
+            : 'Recovered from your last visit.'}
+        </p>
       </div>
 
-      <CompareSlider
-        beforeSrc={beforeSrc}
-        afterSrc={afterSrc}
-        className="aspect-[4/5] w-full"
-      />
+      {beforeSrc ? (
+        <CompareSlider beforeSrc={beforeSrc} afterSrc={afterSrc} className="aspect-[4/5] w-full" />
+      ) : (
+        <div className="overflow-hidden rounded-panel border border-white bg-haze-200 shadow-lift">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={afterSrc} alt="Your NimSnap result" className="block aspect-[4/5] w-full object-cover" />
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2.5">
         <button

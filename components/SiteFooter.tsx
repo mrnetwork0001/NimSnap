@@ -73,7 +73,7 @@ export default function SiteFooter() {
               <h2 className="font-mono text-[0.625rem] uppercase tracking-[0.22em] text-brand-500">
                 {col.heading}
               </h2>
-              <ul className="mt-4 space-y-2.5">
+              <ul className="mt-3 space-y-1.5">
                 {col.links.map((l) => (
                   <li key={l.label}>
                     {l.external ? (
@@ -81,14 +81,14 @@ export default function SiteFooter() {
                         href={l.href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="font-mono text-[0.78125rem] tracking-[0.02em] text-ink-muted transition hover:text-ink"
+                        className="inline-block py-0.5 font-mono text-[0.78125rem] leading-snug tracking-[0.02em] text-ink-muted transition hover:text-ink"
                       >
                         {l.label}
                       </a>
                     ) : (
                       <Link
                         href={l.href}
-                        className="font-mono text-[0.78125rem] tracking-[0.02em] text-ink-muted transition hover:text-ink"
+                        className="inline-block py-0.5 font-mono text-[0.78125rem] leading-snug tracking-[0.02em] text-ink-muted transition hover:text-ink"
                       >
                         {l.label}
                       </Link>

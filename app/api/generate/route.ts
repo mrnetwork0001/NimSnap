@@ -117,15 +117,21 @@ export async function POST(req: Request) {
   if (order.consumedAt) {
     return NextResponse.json({ error: 'This order has already been used.' }, { status: 409 })
   }
-  if (isExpired(order)) {
-    return NextResponse.json({ error: 'This order expired. Start a new shot.' }, { status: 410 })
+  // Record the payment claim BEFORE testing expiry. The order was minted when the
+  // user chose a style, not when they clicked pay - on the Hub rail it is minted
+  // earlier still, to keep the popup inside its user-activation window - so a
+  // user who lingers can pay against an order that is already past its TTL.
+  // Checking expiry first would reject a payment that has genuinely left their
+  // wallet. The claim is untrusted, but it only ever extends an order's life and
+  // grants nothing, so the worst an abuser achieves is keeping their own unpaid
+  // order alive.
+  if (rail !== 'demo' && !order.paymentReportedAt) {
+    order.paymentReportedAt = Date.now()
+    await updateOrder(order.id, { paymentReportedAt: order.paymentReportedAt })
   }
 
-  // The caller is claiming a payment. Record that before verification runs, so a
-  // slow indexer cannot let the order expire underneath a genuine payer while
-  // they retry.
-  if (rail !== 'demo' && !order.paymentReportedAt) {
-    await updateOrder(order.id, { paymentReportedAt: Date.now() })
+  if (isExpired(order)) {
+    return NextResponse.json({ error: 'This order expired. Start a new shot.' }, { status: 410 })
   }
 
   const preset = getPreset(order.presetId)

@@ -40,6 +40,19 @@ type Stage = 'compose' | 'working' | 'result'
  */
 const GENERATE_TIMEOUT_MS = 120_000
 
+/**
+ * How long a pre-minted order may sit before it is re-minted.
+ *
+ * Comfortably inside the server's 15-minute order TTL, so a prepared order is
+ * always fresh by the time the Hub popup opens.
+ */
+const PREPARE_MAX_AGE_MS = 5 * 60 * 1000
+const PREPARE_REFRESH_MS = 4 * 60 * 1000
+
+function isPreparedStale(mintedAt: number): boolean {
+  return Date.now() - mintedAt > PREPARE_MAX_AGE_MS
+}
+
 interface Result {
   url: string
   presetId: PresetId
@@ -77,6 +90,8 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
   const paidOrderRef = useRef<PaidCredit | null>(null)
   /** Set when a stored credit is found on load, so the user can finish it. */
   const [pendingCredit, setPendingCredit] = useState<PaidCredit | null>(null)
+  /** Ticks periodically so a prepared order is re-minted before it goes stale. */
+  const [prepareTick, setPrepareTick] = useState(0)
   /** Lets the generate request be cancelled instead of hanging forever. */
   const abortRef = useRef<AbortController | null>(null)
   /**
@@ -87,7 +102,13 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
    * the network first, which spends that activation and gets the popup blocked.
    * So the order is prepared as soon as a photo and a style are chosen.
    */
-  const preparedRef = useRef<{ orderId: string; claimToken: string; presetId: PresetId; quote: Quote } | null>(null)
+  const preparedRef = useRef<{
+    orderId: string
+    claimToken: string
+    presetId: PresetId
+    quote: Quote
+    mintedAt: number
+  } | null>(null)
 
   const preset = presetId ? getPreset(presetId) : null
 
@@ -188,8 +209,11 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
     // Warm the Hub bundle so the dynamic import resolves from cache.
     import('@nimiq/hub-api').catch(() => {})
 
+    // A prepared order ages: it was minted the moment a style was picked, and its
+    // server-side TTL is already running. Re-mint well before that expires, or a
+    // user who lingers pays against an order the server will refuse.
     const prepared = preparedRef.current
-    if (prepared && prepared.presetId === presetId) return
+    if (prepared && prepared.presetId === presetId && !isPreparedStale(prepared.mintedAt)) return
 
     fetch('/api/orders', {
       method: 'POST',
@@ -204,6 +228,7 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
           claimToken: json.claimToken,
           presetId,
           quote: json.quote,
+          mintedAt: Date.now(),
         }
         setQuote(json.quote)
       })
@@ -215,7 +240,7 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
     return () => {
       cancelled = true
     }
-  }, [rail, file, presetId])
+  }, [rail, file, presetId, prepareTick])
 
   /* ---- Intake ----------------------------------------------------------- */
 
@@ -237,6 +262,14 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
   }, [])
 
   /* ---- Pay + generate --------------------------------------------------- */
+
+  // Nothing else re-runs the prepare effect while the user sits on the page, so
+  // this nudges it on a schedule comfortably inside the order TTL.
+  useEffect(() => {
+    if (rail !== 'hub') return
+    const id = setInterval(() => setPrepareTick((t) => t + 1), PREPARE_REFRESH_MS)
+    return () => clearInterval(id)
+  }, [rail])
 
   const run = useCallback(async () => {
     if (!file || !presetId || !rail) return
@@ -265,8 +298,12 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
       if (!orderId) {
         // Use the order prepared for this rail when we have one; minting here
         // would cost the Hub its popup.
+        // Never spend a stale prepared order: pay against it and the server
+        // rejects the generation after the money has already moved.
         const prepared =
-          rail === 'hub' && preparedRef.current?.presetId === presetId
+          rail === 'hub' &&
+          preparedRef.current?.presetId === presetId &&
+          !isPreparedStale(preparedRef.current.mintedAt)
             ? preparedRef.current
             : null
 
@@ -388,13 +425,13 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
 
   /* ---- Render ----------------------------------------------------------- */
 
-  if (stage === 'result' && result && file) {
+  if (stage === 'result' && result) {
     const resultPreset = getPreset(result.presetId)
     return (
       <div className="mx-auto w-full max-w-md px-2.5 pb-12">
         {resultPreset && (
           <ResultView
-            beforeSrc={file.dataUri}
+            beforeSrc={file?.dataUri}
             afterSrc={result.url}
             preset={resultPreset}
             txHash={result.txHash}
