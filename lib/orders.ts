@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from 'crypto'
-import { ORDER_TTL_MS } from './config'
+import { ORDER_TTL_MS, SETTLEMENT_GRACE_MS } from './config'
 import type { Quote } from './rates'
 import type { PresetId } from './presets'
 
@@ -51,6 +51,16 @@ export interface Order {
    * the client that paid.
    */
   claimTokenHash?: string
+  /**
+   * When the client first came back claiming to have paid.
+   *
+   * An order sits at 'created' until settlement is confirmed, so a slow indexer
+   * used to let a genuine payment age past the 15-minute window and expire -
+   * money taken, 410 forever. This is untrusted (anyone can claim), but it only
+   * ever extends an order's life, never grants anything, so the worst an abuser
+   * achieves is keeping their own unpaid order alive.
+   */
+  paymentReportedAt?: number
   error?: string
 }
 
@@ -245,5 +255,11 @@ export async function claimPaymentTx(txHash: string, orderId: string): Promise<b
 }
 
 export function isExpired(order: Order): boolean {
-  return order.status === 'created' && Date.now() - order.createdAt > ORDER_TTL_MS
+  if (order.status !== 'created') return false
+  // Once payment has been reported, the order stays redeemable far longer, so a
+  // slow chain or indexer cannot strand somebody's money.
+  if (order.paymentReportedAt) {
+    return Date.now() - order.paymentReportedAt > SETTLEMENT_GRACE_MS
+  }
+  return Date.now() - order.createdAt > ORDER_TTL_MS
 }

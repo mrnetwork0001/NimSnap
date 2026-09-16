@@ -55,6 +55,16 @@ export const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
 /** How long an unpaid order stays claimable before it is swept. */
 export const ORDER_TTL_MS = 15 * 60 * 1000
 
+/**
+ * How long an order stays redeemable once the payer says they have paid.
+ *
+ * Settlement can lag: a public indexer catches up in seconds normally, but an
+ * outage can take far longer, and the user has already parted with their money
+ * by then. A day of grace costs nothing and means a slow chain never strands a
+ * real payment.
+ */
+export const SETTLEMENT_GRACE_MS = 24 * 60 * 60 * 1000
+
 /** Max upload we accept, pre-compression. Mobile cameras routinely emit 8-12MB. */
 export const MAX_UPLOAD_BYTES = 12 * 1024 * 1024
 

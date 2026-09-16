@@ -155,3 +155,30 @@ describe('claim tokens', () => {
     expect(claimTokenMatches(order.id, order.claimTokenHash)).toBe(false)
   })
 })
+
+describe('settlement grace', () => {
+  test('an order whose payment was reported survives past the normal window', async () => {
+    const { createOrder, isExpired } = await freshOrders()
+    const { ORDER_TTL_MS } = await import('@/lib/config')
+    const { order } = await createOrder('anime', quote)
+
+    const old = { ...order, createdAt: Date.now() - ORDER_TTL_MS - 60_000 }
+    // Without a reported payment it is gone.
+    expect(isExpired(old)).toBe(true)
+    // With one, a slow indexer cannot strand the money.
+    expect(isExpired({ ...old, paymentReportedAt: Date.now() })).toBe(false)
+  })
+
+  test('the grace period is finite, so abandoned orders still expire', async () => {
+    const { createOrder, isExpired } = await freshOrders()
+    const { SETTLEMENT_GRACE_MS } = await import('@/lib/config')
+    const { order } = await createOrder('anime', quote)
+    expect(
+      isExpired({
+        ...order,
+        createdAt: Date.now() - SETTLEMENT_GRACE_MS * 2,
+        paymentReportedAt: Date.now() - SETTLEMENT_GRACE_MS - 60_000,
+      }),
+    ).toBe(true)
+  })
+})
