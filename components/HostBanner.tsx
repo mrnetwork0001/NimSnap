@@ -11,7 +11,7 @@ interface Props {
  * Explains the payment context when it is not the happy path.
  *
  * Renders nothing when the app is running inside Nimiq Pay with a real rail
- * available — that is the intended experience and needs no explanation.
+ * available - that is the intended experience and needs no explanation.
  */
 export default function HostBanner({ rails }: Props) {
   const hasRealRail = rails.some((r) => r !== 'demo')
@@ -29,7 +29,7 @@ export default function HostBanner({ rails }: Props) {
         </span>
         <p className="text-xs leading-relaxed text-ink-muted">
           <span className="font-bold text-ink">Open NimSnap in Nimiq Pay</span> to pay per
-          shot. In a normal browser there is no wallet to settle the payment — but you can
+          shot. In a normal browser there is no wallet to settle the payment - but you can
           still see what it makes below.
         </p>
       </div>

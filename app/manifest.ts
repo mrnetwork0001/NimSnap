@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'NimSnap — Pay-Per-Shot AI Photo Studio',
+    name: 'NimSnap - Pay-Per-Shot AI Photo Studio',
     short_name: 'NimSnap',
     description:
       'Studio photos for ten cents a shot, paid instantly in NIM or USDT.',

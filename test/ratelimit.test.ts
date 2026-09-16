@@ -1,8 +1,8 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 
 /**
- * The order and generate endpoints are unauthenticated by design — there is no
- * signup — so this limiter is the only thing between the app and someone
+ * The order and generate endpoints are unauthenticated by design - there is no
+ * signup - so this limiter is the only thing between the app and someone
  * hammering the price feed or the paid model endpoint.
  */
 

@@ -12,7 +12,7 @@ import type { Order } from './orders'
 /**
  * Settlement verification.
  *
- * This is the trust boundary. The client tells us "I paid" — we never believe
+ * This is the trust boundary. The client tells us "I paid" - we never believe
  * it. We independently read the chain and confirm that a transaction exists
  * which (a) landed in *our* treasury, (b) carries *this* order's id, and
  * (c) moved at least the quoted amount. Only then does generation unlock.
@@ -33,7 +33,7 @@ export function normalizeNimAddress(addr: string): string {
 }
 
 /**
- * The data field's encoding is not guaranteed across indexers — some return the
+ * The data field's encoding is not guaranteed across indexers - some return the
  * raw bytes hex-encoded, some return decoded UTF-8. The order id is itself hex,
  * so we accept either representation rather than reject a genuine payment over
  * a transport detail.
@@ -48,7 +48,7 @@ export function dataCarriesOrderId(data: string | null | undefined, orderId: str
       const decoded = Buffer.from(haystack, 'hex').toString('utf8').toLowerCase()
       if (decoded.includes(orderId)) return true
     } catch {
-      /* not valid hex bytes — fall through */
+      /* not valid hex bytes - fall through */
     }
   }
   return false
@@ -114,7 +114,7 @@ async function fetchNimTxsFromRpc(address: string): Promise<WatchTx[]> {
  *
  * Matching is by order id in the transaction's data field rather than by
  * transaction hash: the provider returns a *serialized transaction*, not a
- * hash, so the id we planted is the reliable join key — and it makes the check
+ * hash, so the id we planted is the reliable join key - and it makes the check
  * naturally idempotent.
  */
 export async function verifyNimPayment(order: Order): Promise<SettlementResult> {

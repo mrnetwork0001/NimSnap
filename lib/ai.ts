@@ -5,11 +5,11 @@ import type { StylePreset } from './presets'
  *
  * Two engines are supported because they take fundamentally different inputs:
  *
- *  - `kontext` (default) — FLUX.1 Kontext is an *instruction* editor. It rewrites
+ *  - `kontext` (default) - FLUX.1 Kontext is an *instruction* editor. It rewrites
  *    the photo in place from a natural-language command, which is why it holds
  *    onto a person's identity so much better than re-synthesis. It takes no
  *    negative prompt and no strength.
- *  - `sdxl` — classic img2img diffusion. Takes a descriptive prompt, a negative
+ *  - `sdxl` - classic img2img diffusion. Takes a descriptive prompt, a negative
  *    prompt, and a strength. Cheaper, and a useful fallback.
  */
 
@@ -87,7 +87,7 @@ function firstUrl(output: Prediction['output']): string | null {
  * Run one transformation and resolve with the URL of the finished image.
  *
  * Uses Replicate's `Prefer: wait` so short generations come back on the initial
- * request with no polling round-trips at all — that is what keeps the happy path
+ * request with no polling round-trips at all - that is what keeps the happy path
  * near the five-second target. Longer runs fall back to polling.
  */
 export async function generateImage(

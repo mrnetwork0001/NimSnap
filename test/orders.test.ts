@@ -20,7 +20,7 @@ beforeEach(() => vi.resetModules())
 afterEach(() => vi.useRealTimers())
 
 describe('order ids', () => {
-  test('are 16 hex characters — 8 random bytes', async () => {
+  test('are 16 hex characters - 8 random bytes', async () => {
     const { mintOrderId } = await freshOrders()
     expect(mintOrderId()).toMatch(/^[0-9a-f]{16}$/)
   })

@@ -7,12 +7,12 @@ import { dataCarriesOrderId, normalizeNimAddress, topicToAddress } from '@/lib/s
  * A NIM payment is tied to its order by an id planted in the transaction's data
  * field, because the provider returns a serialized transaction rather than a
  * hash. If the matcher misses the encoding an indexer actually returns, every
- * payment verification fails — users pay and get nothing. No mainnet
+ * payment verification fails - users pay and get nothing. No mainnet
  * transaction carrying a data payload was available to sample, so the matcher
  * accepts several representations and these pin every one of them down.
  */
 
-const ORDER = '01fe35b992010ea5' // 8 random bytes, hex — the real id shape
+const ORDER = '01fe35b992010ea5' // 8 random bytes, hex - the real id shape
 const hex = (s: string) => Buffer.from(s, 'utf8').toString('hex')
 
 describe('dataCarriesOrderId', () => {
@@ -60,7 +60,7 @@ describe('dataCarriesOrderId', () => {
    * Documents a real limitation rather than asserting it is fine: an id that is
    * itself valid hex can appear inside an unrelated longer hex string. With 8
    * random bytes the odds are negligible, and a false positive still cannot
-   * unlock anything on its own — the transaction must also be in our treasury
+   * unlock anything on its own - the transaction must also be in our treasury
    * for at least the quoted amount.
    */
   test('known limitation: id can appear inside unrelated hex', () => {

@@ -4,7 +4,7 @@ import { LUNAS_PER_NIM, SHOT_PRICE_USD, USDT_DECIMALS } from './config'
  * NIM/USD rate service.
  *
  * The shot price is denominated in dollars ($0.10), but the Nimiq provider is
- * paid in Lunas — so we need a live rate. CoinGecko is the source the Nimiq
+ * paid in Lunas - so we need a live rate. CoinGecko is the source the Nimiq
  * Wallet itself uses. We cache aggressively because the quote only has to be
  * accurate to the cent, and a rate-limited price feed must never be able to
  * take the whole checkout down.
@@ -53,7 +53,7 @@ async function fetchRate(): Promise<CachedRate> {
 
 /**
  * Current NIM/USD rate. Serves from cache when fresh, coalesces concurrent
- * refreshes, and falls back to the last known good rate if the feed fails —
+ * refreshes, and falls back to the last known good rate if the feed fails -
  * a stale rate is far better than a checkout that cannot quote a price.
  */
 export async function getNimUsdRate(): Promise<{ usdPerNim: number; stale: boolean }> {

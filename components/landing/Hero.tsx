@@ -19,7 +19,7 @@ export default function Hero() {
         </p>
 
         <p className="mt-3 max-w-xl text-[0.9375rem] leading-relaxed text-ink-muted">
-          Upload a selfie, a product or your pet, pick a style, and pay $0.10 — settled
+          Upload a selfie, a product or your pet, pick a style, and pay $0.10 - settled
           instantly in NIM or USDT through Nimiq Pay. No account to create, and no monthly
           fee for photos you take three times a year.
         </p>

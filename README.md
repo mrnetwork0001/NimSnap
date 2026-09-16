@@ -1,4 +1,4 @@
-# 📸 NimSnap — Pay-Per-Shot AI Photo Studio
+# 📸 NimSnap - Pay-Per-Shot AI Photo Studio
 
 > A Nimiq Mini App that turns any photo into a studio-grade portrait, avatar or
 > product shot for **$0.10 a shot**, settled instantly in **NIM** or **USDT**.
@@ -11,7 +11,7 @@ Built for the **Nimiq Mini Apps Competition (Cycle II)**. MIT licensed.
 ## Why pay-per-shot
 
 Every AI photo tool wants $20–$50/month. Most people need three headshots a year.
-NimSnap prices the actual unit of value — one generated photo — at ten cents, which
+NimSnap prices the actual unit of value - one generated photo - at ten cents, which
 is only practical on a rail where a ten-cent payment isn't eaten by fees. That is
 the entire argument for building it on Nimiq Pay.
 
@@ -21,7 +21,7 @@ the entire argument for building it on Nimiq Pay.
 
 | | |
 | --- | --- |
-| `/` | Landing page — what NimSnap is, for anyone arriving from a link |
+| `/` | Landing page - what NimSnap is, for anyone arriving from a link |
 | `/app` | The studio itself |
 
 The Nimiq Pay deeplink and the PWA `start_url` both point at `/app`, so someone
@@ -30,11 +30,11 @@ reach it. The landing page is for the web.
 
 ## The flow
 
-1. **Open** — the app loads inside Nimiq Pay. No signup, no wallet connect step.
-2. **Upload** — camera or library. The photo is downscaled and compressed on-device.
-3. **Pick a style** — Executive Portrait, Cyberpunk Hero, E-Commerce Studio, Anime.
-4. **Tap "Generate for $0.10"** — Nimiq Pay raises its native confirmation sheet.
-5. **Compare and save** — drag the before/after slider, download HD, share.
+1. **Open** - the app loads inside Nimiq Pay. No signup, no wallet connect step.
+2. **Upload** - camera or library. The photo is downscaled and compressed on-device.
+3. **Pick a style** - Executive Portrait, Cyberpunk Hero, E-Commerce Studio, Anime.
+4. **Tap "Generate for $0.10"** - Nimiq Pay raises its native confirmation sheet.
+5. **Compare and save** - drag the before/after slider, download HD, share.
 
 ---
 
@@ -45,7 +45,7 @@ This is worth stating precisely, because it is easy to assume there's a
 
 A Mini App runs **inside** the Nimiq Pay app, which injects a provider at
 `window.nimiq` before the page script runs. `@nimiq/mini-app-sdk` is a thin
-typing-and-detection helper over that provider — there is no API key anywhere
+typing-and-detection helper over that provider - there is no API key anywhere
 in the system, and the payment confirmation UI belongs to the host, not to us.
 
 **NIM rail.** The client asks the provider to send a basic transaction with data:
@@ -60,12 +60,12 @@ await nimiq.sendBasicTransactionWithData({
 ```
 
 Nimiq Pay renders its own confirm sheet and signs. The provider returns a
-**serialized transaction**, not a hash — which is exactly why the order id is
+**serialized transaction**, not a hash - which is exactly why the order id is
 planted in the transaction's `data` field. That memo is the join key the server
 uses to recognise this payment later.
 
 **USDT rail.** Nimiq Pay also exposes `window.ethereum`, so USDT on Polygon is a
-plain ERC-20 `transfer` — no extra setup, no bridge.
+plain ERC-20 `transfer` - no extra setup, no bridge.
 
 **Verification.** The client is never trusted. `POST /api/generate` independently
 reads the chain and requires a transaction that (a) landed in *our* treasury,
@@ -84,7 +84,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-`.env.local` for a local dry run — full flow, no funds move:
+`.env.local` for a local dry run - full flow, no funds move:
 
 ```env
 NEXT_PUBLIC_DEMO_MODE=true
@@ -111,7 +111,7 @@ nimiqpay://miniapp?url=your-app.com/app
 https://nimpay.app/miniapps/open/your-app.com/app
 ```
 
-The NIM rail only works inside Nimiq Pay — in a desktop browser there is no
+The NIM rail only works inside Nimiq Pay - in a desktop browser there is no
 provider to sign with, and the UI says so rather than failing at the last step.
 
 ---
@@ -119,7 +119,7 @@ provider to sign with, and the UI says so rather than failing at the last step.
 ## Showcase examples
 
 Someone opening NimSnap in a plain browser has no wallet, so the pay button is
-correctly disabled — which used to leave them staring at a dead end with nothing
+correctly disabled - which used to leave them staring at a dead end with nothing
 showing what the app does. The home screen now carries real before/after pairs
 they can drag, which also gives shared links somewhere to land.
 
@@ -161,9 +161,9 @@ Next.js 14 App Router (client)
   │
 Server (Node runtime)
   ├── lib/rates.ts       live NIM/USD (CoinGecko, cached, stale-tolerant)
-  ├── lib/orders.ts      order store — in-memory, or Upstash Redis if configured
+  ├── lib/orders.ts      order store - in-memory, or Upstash Redis if configured
   ├── lib/settlement.ts  independent chain verification (Nimiq indexer / Polygon RPC)
-  └── lib/ai.ts          Replicate — FLUX.1 Kontext (default) or SDXL img2img
+  └── lib/ai.ts          Replicate - FLUX.1 Kontext (default) or SDXL img2img
 ```
 
 **Pricing is live.** The shot is denominated in dollars but paid in Lunas, so the
@@ -171,7 +171,7 @@ server quotes against a real NIM/USD feed at order time and holds the user to th
 quote. At the time of writing $0.10 ≈ 265 NIM ≈ 26,565,365 Lunas.
 
 **Engine choice.** FLUX.1 Kontext is the default because it's an *instruction*
-editor — it rewrites the photo in place rather than re-synthesising it, which is
+editor - it rewrites the photo in place rather than re-synthesising it, which is
 what keeps a headshot recognisably the same person. SDXL img2img is available via
 `REPLICATE_ENGINE=sdxl`. Presets carry prompts for both.
 
@@ -222,7 +222,7 @@ Production build: **97.1 kB** first load JS.
 
 ## Result storage
 
-Replicate deletes prediction output after an hour — their docs are explicit that
+Replicate deletes prediction output after an hour - their docs are explicit that
 you must save a copy to keep using it. Handing that URL to the client meant a
 paying user who came back later found a broken image, so finished generations
 are copied somewhere durable before being returned.
@@ -230,7 +230,7 @@ are copied somewhere durable before being returned.
 The backend is picked from the environment: an S3-compatible bucket (R2, S3, B2)
 when `S3_*` is set, otherwise local disk under `public/results/`. Local disk is
 correct for a container or VM with a volume and **wrong for serverless**, where
-the filesystem is ephemeral — configure S3 there.
+the filesystem is ephemeral - configure S3 there.
 
 If storage fails the API falls back to the model's expiring URL rather than
 failing a generation the user already paid for, returns `durable: false`, and the
@@ -244,7 +244,7 @@ Stated plainly rather than left to be discovered:
 - **The `data` field encoding is confirmed by construction, not by observation.**
   Indexers may return a transaction's data as raw hex or as decoded UTF-8, and no
   recent mainnet transaction carrying a data payload was available to sample.
-  `dataCarriesOrderId` accepts both representations, so either works — but this
+  `dataCarriesOrderId` accepts both representations, so either works - but this
   is the one thing to confirm against a live payment before judging day.
 - **Order storage defaults to memory.** Correct for `next start` on a container
   or VM. On a serverless platform, set `UPSTASH_REDIS_REST_URL` /

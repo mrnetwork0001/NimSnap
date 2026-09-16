@@ -7,8 +7,8 @@ import { LUNAS_PER_NIM } from '@/lib/config'
  * quote never asks for less than the dollar price, and a dead price feed cannot
  * take checkout down.
  *
- * The rate cache is module-global — correct for production, where a rate-limited
- * feed must not be hit per request — so each test loads a fresh copy of the
+ * The rate cache is module-global - correct for production, where a rate-limited
+ * feed must not be hit per request - so each test loads a fresh copy of the
  * module rather than inheriting a primed cache from the test before it.
  */
 

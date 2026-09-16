@@ -1,8 +1,8 @@
 /**
  * Minimal fixed-window rate limiter.
  *
- * Order creation and generation are unauthenticated by design — the whole point
- * is that there is no signup — so this is the only thing standing between the
+ * Order creation and generation are unauthenticated by design - the whole point
+ * is that there is no signup - so this is the only thing standing between the
  * app and someone hammering the price feed or the model endpoint.
  */
 

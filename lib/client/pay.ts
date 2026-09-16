@@ -15,7 +15,7 @@ import type { Quote } from '../rates'
  *
  * NIM goes through the Nimiq provider that Nimiq Pay injects as `window.nimiq`;
  * the host renders its own native confirmation sheet, so there is no checkout UI
- * for us to build — we hand it a transaction and await the user's decision.
+ * for us to build - we hand it a transaction and await the user's decision.
  *
  * USDT goes through `window.ethereum`, which Nimiq Pay also exposes, as a plain
  * ERC-20 transfer on Polygon.
@@ -47,7 +47,7 @@ export class PaymentError extends Error {
  * `init()` polls for the host injection and rejects on timeout. We keep the
  * resolved provider so the checkout path never has to wait for detection twice,
  * and we use a short timeout here because this only drives which buttons to show
- * — a plain browser should fall through to "not available" quickly, not hang.
+ * - a plain browser should fall through to "not available" quickly, not hang.
  */
 let providerPromise: Promise<NimiqProvider | null> | null = null
 
@@ -196,7 +196,7 @@ export async function payWithUsdt(quote: Quote): Promise<PayResult> {
  * we never offer a payment method that is guaranteed to fail.
  *
  * Async because provider injection is not guaranteed to have happened by the
- * time React mounts — waiting briefly avoids flashing "open me in Nimiq Pay" at
+ * time React mounts - waiting briefly avoids flashing "open me in Nimiq Pay" at
  * a user who is already inside Nimiq Pay.
  */
 export async function availableRails(): Promise<Rail[]> {

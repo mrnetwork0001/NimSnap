@@ -10,19 +10,19 @@ const sans = Plus_Jakarta_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'NimSnap — Studio photos for ten cents a shot.',
+  title: 'NimSnap - Studio photos for ten cents a shot.',
   description:
     'Turn any photo into a studio-grade portrait, avatar or product shot for $0.10, paid instantly in NIM or USDT. No account, no subscription.',
   applicationName: 'NimSnap',
   manifest: '/manifest.webmanifest',
   openGraph: {
-    title: 'NimSnap — Studio photos for ten cents a shot.',
+    title: 'NimSnap - Studio photos for ten cents a shot.',
     description: 'Pay per shot with Nimiq Pay. No subscription, no signup.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'NimSnap — Studio photos for ten cents a shot.',
+    title: 'NimSnap - Studio photos for ten cents a shot.',
     description: 'Pay per shot with Nimiq Pay. No subscription, no signup.',
   },
 }

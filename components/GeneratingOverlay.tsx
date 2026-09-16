@@ -13,8 +13,8 @@ const STEPS = ['Confirming your payment', 'Reading the photo', 'Applying the sty
 /**
  * Progress overlay shown while a paid shot renders.
  *
- * There is no real progress signal to report — the model gives us one result at
- * the end — so instead of a fake percentage bar this walks through the actual
+ * There is no real progress signal to report - the model gives us one result at
+ * the end - so instead of a fake percentage bar this walks through the actual
  * stages of the pipeline. It stalls on the final step rather than completing
  * early, because a bar that hits 100% and then waits reads as broken.
  */

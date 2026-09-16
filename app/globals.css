@@ -105,8 +105,8 @@
  * layer always ends exactly under the divider.
  *
  * Percentages are mirrored: a divider at P% pairs with inset(0 (100-P)% 0 0).
- * The range is deliberately weighted to the right so the styled result — the
- * thing being sold — holds the larger share of the frame throughout the loop.
+ * The range is deliberately weighted to the right so the styled result - the
+ * thing being sold - holds the larger share of the frame throughout the loop.
  */
 @keyframes ns-sweep {
   0%,
@@ -198,8 +198,8 @@
 }
 
 /*
- * Motion is decoration here, not information — the mock still reads correctly
- * frozen — so it is removed entirely rather than merely shortened.
+ * Motion is decoration here, not information - the mock still reads correctly
+ * frozen - so it is removed entirely rather than merely shortened.
  */
 @media (prefers-reduced-motion: reduce) {
   .ns-sweep,

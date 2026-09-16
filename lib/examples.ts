@@ -3,8 +3,8 @@ import type { PresetId } from './presets'
 /**
  * Before/after showcase assets.
  *
- * These exist so someone opening NimSnap in a plain browser — a judge, or anyone
- * following a shared link — can see what the product actually does without a
+ * These exist so someone opening NimSnap in a plain browser - a judge, or anyone
+ * following a shared link - can see what the product actually does without a
  * wallet. That audience currently hits a dead end.
  *
  * The pairs must be genuine output from our own pipeline. Nothing here is
