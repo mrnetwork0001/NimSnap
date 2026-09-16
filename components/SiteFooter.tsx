@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import Wordmark from './Wordmark'
-import { NIM_TREASURY } from '@/lib/config'
 
 /**
  * Site footer.
@@ -14,6 +13,10 @@ import { NIM_TREASURY } from '@/lib/config'
  * The palette is ours, not theirs: that site is near-black, this one is built on
  * a pale ground, so the same structure is rendered in the light theme rather
  * than copied wholesale.
+ *
+ * Note: the "your photo is sent to our AI provider" disclosure is deliberately
+ * NOT repeated here. It lives in UploadZone, at the moment the user actually
+ * hands over a photo, which is the only place it changes anyone's decision.
  */
 
 interface FooterLink {
@@ -63,13 +66,6 @@ export default function SiteFooter() {
               anything is generated.
             </p>
 
-            {NIM_TREASURY && (
-              <p className="mt-4 font-mono text-[0.6875rem] leading-relaxed text-ink-soft">
-                Treasury
-                <br />
-                <span className="break-all">{NIM_TREASURY}</span>
-              </p>
-            )}
           </div>
 
           {COLUMNS.map((col) => (
@@ -104,14 +100,6 @@ export default function SiteFooter() {
           ))}
         </div>
 
-        <div className="mt-12 flex flex-col gap-2 border-t border-white/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-mono text-[0.6875rem] text-ink-soft">
-            Built for the Nimiq Mini Apps Competition · MIT
-          </p>
-          <p className="max-w-md font-mono text-[0.6875rem] leading-relaxed text-ink-soft">
-            Uploads are sent to our AI provider to generate your result.
-          </p>
-        </div>
       </div>
     </footer>
   )
