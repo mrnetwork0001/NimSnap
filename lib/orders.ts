@@ -1,4 +1,4 @@
-import { randomBytes } from 'crypto'
+import { createHash, randomBytes, timingSafeEqual } from 'crypto'
 import { ORDER_TTL_MS } from './config'
 import type { Quote } from './rates'
 import type { PresetId } from './presets'
@@ -42,6 +42,15 @@ export interface Order {
    * enumerate customers' photos.
    */
   resultKey?: string
+  /**
+   * SHA-256 of the claim token handed to the paying client.
+   *
+   * Recovery cannot be authorised by the order id alone: that id is published
+   * on-chain so settlement can be verified, so anyone watching the treasury
+   * could otherwise fetch a stranger's finished photo. The token never leaves
+   * the client that paid.
+   */
+  claimTokenHash?: string
   error?: string
 }
 
@@ -172,16 +181,38 @@ export function mintResultKey(): string {
   return randomBytes(16).toString('hex')
 }
 
-export async function createOrder(presetId: PresetId, quote: Quote): Promise<Order> {
+/** Secret handed to the paying client, so only they can recover the result. */
+export function mintClaimToken(): string {
+  return randomBytes(24).toString('hex')
+}
+
+export function hashClaimToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex')
+}
+
+/** Constant-time comparison, so a token cannot be guessed a byte at a time. */
+export function claimTokenMatches(token: string, expectedHash: string | undefined): boolean {
+  if (!expectedHash || !token) return false
+  const a = Buffer.from(hashClaimToken(token), 'hex')
+  const b = Buffer.from(expectedHash, 'hex')
+  return a.length === b.length && timingSafeEqual(a, b)
+}
+
+export async function createOrder(
+  presetId: PresetId,
+  quote: Quote,
+): Promise<{ order: Order; claimToken: string }> {
+  const claimToken = mintClaimToken()
   const order: Order = {
     id: mintOrderId(),
     presetId,
     status: 'created',
     quote,
     createdAt: Date.now(),
+    claimTokenHash: hashClaimToken(claimToken),
   }
   await store.set(order)
-  return order
+  return { order, claimToken }
 }
 
 export async function getOrder(id: string): Promise<Order | null> {

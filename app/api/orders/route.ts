@@ -41,9 +41,12 @@ export async function POST(req: Request) {
 
   try {
     const quote = await quoteShot()
-    const order = await createOrder(presetId, quote)
+    const { order, claimToken } = await createOrder(presetId, quote)
     return NextResponse.json({
       orderId: order.id,
+      // The client keeps this to recover its own result later. It is never
+      // published on-chain, unlike the order id.
+      claimToken,
       quote,
       treasury: { nim: NIM_TREASURY || null, usdt: USDT_TREASURY || null },
       demoMode: DEMO_MODE,
