@@ -1,8 +1,11 @@
-# 📸 NimSnap - Pay-Per-Shot AI Photo Studio
+# NimSnap - Pay-Per-Shot AI Photo Studio
 
 > A Nimiq Mini App that turns any photo into a studio-grade portrait, avatar,
 > product shot or restored print for **$0.10 a shot**, paid in **NIM**.
 > No account. No subscription. No forms.
+
+<img width="2842" height="1642" alt="image" src="https://github.com/user-attachments/assets/ab351eb7-cce8-4e4a-8ba7-4732c14f284b" />
+
 
 **Live at [nimsnap.xyz](https://nimsnap.xyz)** - pay from any browser with a
 Nimiq Wallet, or open it inside Nimiq Pay on a phone.
