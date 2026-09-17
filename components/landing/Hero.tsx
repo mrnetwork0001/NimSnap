@@ -27,9 +27,6 @@ export default function Hero() {
         <div className="mt-8 flex flex-wrap items-center gap-3">
           <Link href="/app" className="btn-primary">
             Open the studio
-            <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
-              <path d="M5 12h14m-6-6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
           </Link>
           <Link href="#how" className="btn-ghost">
             How it works
