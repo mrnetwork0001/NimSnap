@@ -2,6 +2,7 @@
 
 import type { Quote } from '@/lib/rates'
 import type { Rail } from '@/lib/client/pay'
+import { formatNim } from '@/lib/format'
 
 interface Props {
   quote: Quote | null
@@ -18,11 +19,6 @@ interface Props {
 // rather than an injected provider - so the user sees the currency, not the
 // plumbing.
 const RAIL_LABEL: Record<Rail, string> = { nim: 'NIM', hub: 'NIM', usdt: 'USDT', demo: 'Demo' }
-
-function formatNim(nim: number): string {
-  if (nim >= 1000) return `${Math.round(nim).toLocaleString()} NIM`
-  return `${nim.toFixed(nim < 10 ? 2 : 1)} NIM`
-}
 
 /**
  * Sticky checkout bar.

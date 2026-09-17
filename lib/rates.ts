@@ -13,8 +13,18 @@ import { LUNAS_PER_NIM, SHOT_PRICE_USD, USDT_DECIMALS } from './config'
 const COINGECKO_URL =
   'https://api.coingecko.com/api/v3/simple/price?ids=nimiq-2&vs_currencies=usd'
 
-/** Refresh at most this often. */
-const CACHE_TTL_MS = 60_000
+/**
+ * Refresh at most this often.
+ *
+ * This is the real ceiling on how fresh a displayed rate can be - the landing
+ * page polls faster than this, but every poll inside the window is served the
+ * same cached number. Thirty seconds is one CoinGecko call every thirty seconds
+ * no matter how many visitors are on the site, because the cache is shared by
+ * the whole process and concurrent refreshes are coalesced. That is two calls a
+ * minute against a free tier that tolerates an order of magnitude more, so the
+ * feed is in no danger of being rate limited into staleness.
+ */
+const CACHE_TTL_MS = 30_000
 
 /**
  * How long a quote handed to a client stays honourable. Verification accepts a

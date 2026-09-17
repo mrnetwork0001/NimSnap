@@ -2,6 +2,7 @@ import Link from 'next/link'
 import PageBackdrop from '@/components/PageBackdrop'
 import Wordmark from '@/components/Wordmark'
 import Hero from '@/components/landing/Hero'
+import LiveStats from '@/components/landing/LiveStats'
 import MobileNav from '@/components/landing/MobileNav'
 import SiteFooter from '@/components/SiteFooter'
 import { ClosingCta, Features, HowItWorks, PaymentStory, Styles } from '@/components/landing/Sections'
@@ -32,6 +33,7 @@ export default function Home() {
 
       <main>
         <Hero />
+        <LiveStats />
         <Features />
         <div id="styles" className="scroll-mt-24">
           <Styles />

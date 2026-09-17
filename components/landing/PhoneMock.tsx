@@ -1,5 +1,6 @@
 import { PRESETS } from '@/lib/presets'
 import PresetIcon from '@/components/PresetIcon'
+import LiveNim from './LiveNim'
 
 /**
  * A still of the studio, framed as a phone - except it does not stay still.
@@ -95,8 +96,11 @@ export default function PhoneMock() {
           <div className="mt-3 rounded-full bg-brand-gradient px-4 py-2.5 text-center text-[0.8125rem] font-semibold text-white shadow-brand">
             Generate for $0.10
           </div>
-          <p className="mt-2 text-center text-[0.625rem] text-ink-soft">
-            ≈ 259 NIM · settles instantly
+          {/* The one number in this mock that is not a drawing: the real,
+              live NIM price of the shot the button above is offering. */}
+          <p className="mt-2 flex items-center justify-center gap-1 text-[0.625rem] text-ink-soft">
+            <LiveNim />
+            <span>· settles instantly</span>
           </p>
         </div>
       </div>
