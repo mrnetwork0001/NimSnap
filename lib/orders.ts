@@ -7,7 +7,7 @@ import type { PresetId } from './presets'
  * Order store.
  *
  * An order is the unit that ties a payment to a generation. The server mints the
- * id, the client writes that id into the on-chain transaction's data field, and
+ * id, the client writes that id into the onchain transaction's data field, and
  * verification looks for exactly that id. Because the id is server-minted and
  * burned on first use, a client cannot replay one payment into two generations.
  *
@@ -28,7 +28,7 @@ export interface Order {
   createdAt: number
   /** Rail the payment actually settled on. */
   rail?: PaymentRail
-  /** On-chain reference: Nimiq tx hash, or Polygon tx hash for USDT. */
+  /** Onchain reference: Nimiq tx hash, or Polygon tx hash for USDT. */
   txHash?: string
   /** Set once the generation is delivered, so the order cannot be reused. */
   consumedAt?: number
@@ -46,7 +46,7 @@ export interface Order {
    * SHA-256 of the claim token handed to the paying client.
    *
    * Recovery cannot be authorised by the order id alone: that id is published
-   * on-chain so settlement can be verified, so anyone watching the treasury
+   * onchain so settlement can be verified, so anyone watching the treasury
    * could otherwise fetch a stranger's finished photo. The token never leaves
    * the client that paid.
    */
@@ -68,7 +68,7 @@ interface Store {
   get(id: string): Promise<Order | null>
   set(order: Order): Promise<void>
   /**
-   * Atomically bind an on-chain transaction to an order.
+   * Atomically bind an onchain transaction to an order.
    *
    * Returns true if this order now owns the transaction, false if a DIFFERENT
    * order already claimed it. Re-claiming with the same order id must succeed,
@@ -239,7 +239,7 @@ export async function updateOrder(id: string, patch: Partial<Order>): Promise<Or
 }
 
 /**
- * Bind an on-chain transaction to this order, once and for all.
+ * Bind an onchain transaction to this order, once and for all.
  *
  * ERC-20 transfers carry no memo, so a USDT receipt proves only that *someone*
  * paid the treasury - not which order it was for. Without this, one $0.10

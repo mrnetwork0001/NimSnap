@@ -24,7 +24,7 @@ const CACHE_TTL_MS = 60_000
 export const QUOTE_TTL_MS = 10 * 60 * 1000
 
 /**
- * Tolerance applied when verifying an on-chain amount against the quote.
+ * Tolerance applied when verifying an onchain amount against the quote.
  * Absorbs rounding in the wallet and any drift inside the quote window.
  */
 export const PRICE_TOLERANCE = 0.05

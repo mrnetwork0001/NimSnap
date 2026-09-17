@@ -139,7 +139,7 @@ export function PaymentStory() {
             on a public block explorer rather than take our word for it.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
-            {['Verified on-chain', 'Single-use orders', 'Free retries', 'Linked receipt'].map((t) => (
+            {['Verified onchain', 'Single-use orders', 'Free retries', 'Linked receipt'].map((t) => (
               <span key={t} className="rounded-full border border-white bg-white/70 px-3 py-1.5 text-[0.6875rem] font-semibold text-brand-600 shadow-ghost">
                 {t}
               </span>

@@ -10,7 +10,7 @@ import type { Rail } from './pay'
  * webview, or a dropped response silently forfeited the user's money with no way
  * to get it back. Persisting it is what makes a payment survive the app dying.
  *
- * The claim token is the part that matters: the order id is published on-chain
+ * The claim token is the part that matters: the order id is published onchain
  * so settlement can be verified, so it is not a secret and cannot authorise
  * recovery on its own.
  */

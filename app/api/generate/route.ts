@@ -202,7 +202,7 @@ export async function POST(req: Request) {
     // somewhere durable before handing it over - the user paid for a file they
     // can come back to, not a link that rots.
     // Named with a fresh random key rather than the order id: that id is public
-    // on-chain, so reusing it would let anyone enumerate customers' photos.
+    // onchain, so reusing it would let anyone enumerate customers' photos.
     const resultKey = order.resultKey ?? mintResultKey()
     const stored = await persistResult(modelUrl, resultKey)
 

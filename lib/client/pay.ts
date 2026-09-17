@@ -93,7 +93,7 @@ function isErrorResponse(value: unknown): boolean {
  *
  * The order id rides along in the transaction's data field. That is what makes
  * server-side verification possible: the provider returns a serialized
- * transaction rather than a hash, so an on-chain memo is the only reliable way
+ * transaction rather than a hash, so an onchain memo is the only reliable way
  * to tie this payment back to this order.
  */
 export async function payWithNim(orderId: string, quote: Quote): Promise<PayResult> {

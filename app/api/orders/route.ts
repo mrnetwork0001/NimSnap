@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       orderId: order.id,
       // The client keeps this to recover its own result later. It is never
-      // published on-chain, unlike the order id.
+      // published onchain, unlike the order id.
       claimToken,
       quote,
       treasury: { nim: NIM_TREASURY || null, usdt: USDT_TREASURY || null },

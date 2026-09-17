@@ -285,7 +285,7 @@ The trust boundary is `POST /api/generate`. A client that lies gets nothing.
 | Free generations via demo rail | `rail: "demo"` is rejected unless the deployment enables it |
 | Hammer the model endpoint | Per-IP rate limits on quote, order and generate |
 | Replay one USDT transfer across many orders | Transaction hashes are claimed atomically and are single-use |
-| Enumerate other people's photos | Results are named with 16 random bytes, never the on-chain order id |
+| Enumerate other people's photos | Results are named with 16 random bytes, never the onchain order id |
 | Recover someone else's order | Recovery needs a claim token that never leaves the paying client |
 | Keep selling when the engine is dead | A 401/402 from the model trips a breaker and `/api/orders` stops selling |
 

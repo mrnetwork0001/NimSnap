@@ -13,7 +13,7 @@ const VOICE = process.env.ELEVENLABS_VOICE || 'CwhRBWXzGAHq8TQ4Fs17'
 const MODEL = 'eleven_multilingual_v2'
 
 // Eleven sections, roughly 150 s of speech. Every claim here is one the app can
-// actually demonstrate on camera - the on-chain section is real footage of a
+// actually demonstrate on camera - the onchain section is real footage of a
 // real mainnet payment, not a mock.
 const SECTIONS = [
   ['00', "NimSnap. Studio photos for ten cents a shot."],

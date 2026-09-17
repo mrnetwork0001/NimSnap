@@ -37,7 +37,7 @@ export default function Hero() {
           <svg viewBox="0 0 24 24" className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true">
             <path d="M12 3l7 3v6c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6l7-3z" fill="none" stroke="currentColor" strokeWidth="1.6" />
           </svg>
-          Payment settles on-chain before anything is generated, and a failed render never
+          Payment settles onchain before anything is generated, and a failed render never
           charges you twice.
         </p>
       </div>
