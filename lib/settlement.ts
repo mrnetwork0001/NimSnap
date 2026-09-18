@@ -40,13 +40,25 @@ export function normalizeNimAddress(addr: string): string {
  */
 export function dataCarriesOrderId(data: string | null | undefined, orderId: string): boolean {
   if (!data) return false
-  const haystack = data.toLowerCase()
-  if (haystack.includes(orderId)) return true
-  // Indexer returned hex bytes; decode and look again.
+  const want = orderId.trim().toLowerCase()
+  if (!want) return false
+
+  // Equality, NOT containment. A Nimiq basic transaction carries 64 bytes of
+  // data and a server-minted order id is 16 ASCII characters, so a substring
+  // test let one transaction name four different orders at once - and each of
+  // them settled, because the amount is checked per order against tx.value and
+  // never cumulatively. One payment bought four shots. Matching the whole field
+  // means a transaction can only ever name the single order it paid for.
+  const clean = (v: string) => v.replace(/\0+$/, '').trim().toLowerCase()
+
+  if (clean(data) === want) return true
+
+  // The indexer hands the field back as hex bytes, which is the form that
+  // carries every real NIM payment - decode and compare that too.
+  const haystack = data.trim().toLowerCase()
   if (/^[0-9a-f]+$/.test(haystack) && haystack.length % 2 === 0) {
     try {
-      const decoded = Buffer.from(haystack, 'hex').toString('utf8').toLowerCase()
-      if (decoded.includes(orderId)) return true
+      if (clean(Buffer.from(haystack, 'hex').toString('utf8')) === want) return true
     } catch {
       /* not valid hex bytes - fall through */
     }

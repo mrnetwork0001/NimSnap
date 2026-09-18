@@ -200,3 +200,54 @@ describe('expiry ordering (regression)', () => {
     expect(isExpired({ ...stale, paymentReportedAt: Date.now() })).toBe(false)
   })
 })
+
+describe('generation lock', () => {
+  /**
+   * The race this closes: /api/generate reads `consumedAt` at the top of the
+   * handler and does not write it until the model has finished, about a minute
+   * later. Two requests carrying the same order id both cleared that read
+   * before either wrote, so one payment produced two images. Binding the
+   * transaction cannot help - it is the same transaction, and re-claiming by
+   * the same order must succeed so a retry after a failure stays free.
+   */
+  test('only one caller can hold a given order', async () => {
+    const { claimGenerationSlot, mintOrderId } = await freshOrders()
+    const id = mintOrderId()
+    expect(await claimGenerationSlot(id, 60_000)).toBe(true)
+    expect(await claimGenerationSlot(id, 60_000)).toBe(false)
+    expect(await claimGenerationSlot(id, 60_000)).toBe(false)
+  })
+
+  test('concurrent callers produce exactly one winner', async () => {
+    const { claimGenerationSlot, mintOrderId } = await freshOrders()
+    const id = mintOrderId()
+    const results = await Promise.all(
+      Array.from({ length: 12 }, () => claimGenerationSlot(id, 60_000)),
+    )
+    expect(results.filter(Boolean)).toHaveLength(1)
+  })
+
+  test('releasing lets the payer retry at once rather than wait out the TTL', async () => {
+    const { claimGenerationSlot, releaseGenerationSlot, mintOrderId } = await freshOrders()
+    const id = mintOrderId()
+    expect(await claimGenerationSlot(id, 60_000)).toBe(true)
+    await releaseGenerationSlot(id)
+    expect(await claimGenerationSlot(id, 60_000)).toBe(true)
+  })
+
+  test('an expired lock frees itself, so a dead process cannot strand an order', async () => {
+    const { claimGenerationSlot, mintOrderId } = await freshOrders()
+    const id = mintOrderId()
+    expect(await claimGenerationSlot(id, 1)).toBe(true)
+    await new Promise((r) => setTimeout(r, 15))
+    expect(await claimGenerationSlot(id, 60_000)).toBe(true)
+  })
+
+  test('locks are per order, not global', async () => {
+    const { claimGenerationSlot, mintOrderId } = await freshOrders()
+    const a = mintOrderId()
+    const b = mintOrderId()
+    expect(await claimGenerationSlot(a, 60_000)).toBe(true)
+    expect(await claimGenerationSlot(b, 60_000)).toBe(true)
+  })
+})

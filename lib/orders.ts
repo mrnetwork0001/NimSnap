@@ -75,6 +75,22 @@ interface Store {
    * so a retry after a failed generation is not mistaken for a replay.
    */
   claimTx(txHash: string, orderId: string): Promise<boolean>
+
+  /**
+   * Atomically take the in-flight lock for one order.
+   *
+   * `consumedAt` is read at the top of /api/generate and written ~100 lines
+   * later, after settlement and after the model has run. Two requests carrying
+   * the same order id both passed that read before either wrote, so both
+   * generated and one payment produced two images. Binding the transaction does
+   * not help here - it is the same transaction, and re-claiming by the same
+   * order is required to succeed so retries stay free. This lock is what makes
+   * the window single-threaded.
+   */
+  claimGeneration(orderId: string, ttlMs: number): Promise<boolean>
+
+  /** Release the in-flight lock so a failed attempt can be retried for free. */
+  releaseGeneration(orderId: string): Promise<void>
 }
 
 /** Serverless-safe store, used when Upstash credentials are present. */
@@ -111,6 +127,19 @@ class RedisStore implements Store {
     await this.cmd('SET', `nimsnap:order:${order.id}`, JSON.stringify(order), 'EX', ttlSeconds)
   }
 
+  async claimGeneration(orderId: string, ttlMs: number): Promise<boolean> {
+    // PX + NX: the lock is atomic and self-healing, so a process that dies
+    // mid-generation cannot strand the order forever.
+    const won = await this.cmd<string | null>(
+      'SET', `nimsnap:gen:${orderId}`, '1', 'PX', String(Math.ceil(ttlMs)), 'NX',
+    )
+    return Boolean(won)
+  }
+
+  async releaseGeneration(orderId: string): Promise<void> {
+    await this.cmd('DEL', `nimsnap:gen:${orderId}`)
+  }
+
   async claimTx(txHash: string, orderId: string): Promise<boolean> {
     const key = `nimsnap:tx:${txHash.toLowerCase()}`
     // SET NX is the atomic primitive: it succeeds only if nobody holds the key,
@@ -128,6 +157,8 @@ class MemoryStore implements Store {
   private map = new Map<string, Order>()
   /** Transaction hashes already spent, so one payment cannot fund many orders. */
   private claimedTx = new Map<string, { orderId: string; at: number }>()
+  /** Order id -> lock expiry, so two concurrent generates cannot both proceed. */
+  private generating = new Map<string, number>()
 
   async get(id: string): Promise<Order | null> {
     this.sweep()
@@ -136,6 +167,18 @@ class MemoryStore implements Store {
 
   async set(order: Order): Promise<void> {
     this.map.set(order.id, order)
+  }
+
+  async claimGeneration(orderId: string, ttlMs: number): Promise<boolean> {
+    const now = Date.now()
+    const held = this.generating.get(orderId)
+    if (held !== undefined && held > now) return false
+    this.generating.set(orderId, now + ttlMs)
+    return true
+  }
+
+  async releaseGeneration(orderId: string): Promise<void> {
+    this.generating.delete(orderId)
   }
 
   async claimTx(txHash: string, orderId: string): Promise<boolean> {
@@ -249,6 +292,14 @@ export async function updateOrder(id: string, patch: Partial<Order>): Promise<Or
  *
  * Returns false when a different order already spent this transaction.
  */
+export async function claimGenerationSlot(orderId: string, ttlMs: number): Promise<boolean> {
+  return store.claimGeneration(orderId, ttlMs)
+}
+
+export async function releaseGenerationSlot(orderId: string): Promise<void> {
+  await store.releaseGeneration(orderId)
+}
+
 export async function claimPaymentTx(txHash: string, orderId: string): Promise<boolean> {
   if (!txHash) return false
   return store.claimTx(txHash, orderId)

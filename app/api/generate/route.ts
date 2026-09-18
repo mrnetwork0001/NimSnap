@@ -7,6 +7,8 @@ import {
   mintResultKey,
   isExpired,
   updateOrder,
+  claimGenerationSlot,
+  releaseGenerationSlot,
   type Order,
   type PaymentRail,
 } from '@/lib/orders'
@@ -163,12 +165,17 @@ export async function POST(req: Request) {
     }
     settledTxHash = settlement.txHash
 
-    // A USDT receipt proves somebody paid the treasury, not which order it was
-    // for, so the transaction is bound to this order here - once. Without this,
-    // one transfer could be replayed against unlimited fresh orders. Claiming is
-    // idempotent for the same order, so a retry after a failed generation is
-    // still free.
-    if (rail === 'usdt' && settledTxHash) {
+    // Bind the settled transaction to this order - once, on EVERY rail.
+    //
+    // This used to be gated to USDT, on the reasoning that a NIM transfer
+    // carries its order id in the data field and so could only ever match one
+    // order. That was wrong: the data field holds 64 bytes, an order id is 16
+    // characters, and the matcher accepted a substring - so one transfer named
+    // four orders and paid for all four. The matcher now demands equality, and
+    // this claim is the second, independent lock: whatever the chain says, a
+    // given transaction hash can fund exactly one order. Claiming is idempotent
+    // for the same order, so retrying after a failed generation is still free.
+    if (settledTxHash) {
       const claimed = await claimPaymentTx(settledTxHash, order.id)
       if (!claimed) {
         return NextResponse.json(
@@ -182,14 +189,38 @@ export async function POST(req: Request) {
     }
   }
 
-  await updateOrder(order.id, {
-    status: 'generating',
-    rail,
-    txHash: settledTxHash,
-  })
+  // ---- 2. Take the in-flight lock. ----------------------------------------
+  //
+  // `consumedAt` was read at the top of this handler and is not written until
+  // the model has finished, roughly a minute later. Two requests carrying the
+  // same order id both cleared that read before either wrote, so both spent the
+  // credit and one payment produced two images. Binding the transaction cannot
+  // close this - it is the same transaction, and re-claiming by the same order
+  // has to succeed so a retry after a failure stays free.
+  const generationBudget = Math.max(5_000, requestDeadline - Date.now())
+  if (!(await claimGenerationSlot(order.id, generationBudget))) {
+    return NextResponse.json(
+      { error: 'This shot is already being generated. Give it a moment.' },
+      { status: 409 },
+    )
+  }
 
-  // ---- 2. Spend the paid credit on the model. -----------------------------
   try {
+    // Re-read under the lock. The copy loaded at the top of the handler may have
+    // been fetched before a concurrent request consumed the order, so the
+    // earlier `consumedAt` check can be reading a stale row.
+    const current = await getOrder(order.id)
+    if (current?.consumedAt) {
+      return NextResponse.json({ error: 'This order has already been used.' }, { status: 409 })
+    }
+
+    await updateOrder(order.id, {
+      status: 'generating',
+      rail,
+      txHash: settledTxHash,
+    })
+
+    // ---- 3. Spend the paid credit on the model. ---------------------------
     const modelUrl = await generateImage(
       preset,
       image,
@@ -243,5 +274,11 @@ export async function POST(req: Request) {
       },
       { status: 502 },
     )
+  } finally {
+    // Always hand the lock back. On success the order is consumed, so a waiting
+    // request is refused by the re-read above rather than by the lock; on
+    // failure the credit is still live and the user must be able to retry
+    // immediately rather than wait out the TTL.
+    await releaseGenerationSlot(order.id)
   }
 }

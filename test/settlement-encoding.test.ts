@@ -29,9 +29,12 @@ describe('dataCarriesOrderId', () => {
     expect(dataCarriesOrderId(ORDER.toUpperCase(), ORDER)).toBe(true)
   })
 
-  test('id embedded in a larger memo matches', () => {
-    expect(dataCarriesOrderId(`nimsnap:${ORDER}`, ORDER)).toBe(true)
-    expect(dataCarriesOrderId(hex(`nimsnap:${ORDER}`), ORDER)).toBe(true)
+  test('an id embedded in a larger memo does NOT match', () => {
+    // Both rails send the bare id - `data: orderId` and `extraData:
+    // encode(orderId)` - so nothing legitimate ever arrives with a prefix, and
+    // accepting one is what allowed a single transaction to name four orders.
+    expect(dataCarriesOrderId(`nimsnap:${ORDER}`, ORDER)).toBe(false)
+    expect(dataCarriesOrderId(hex(`nimsnap:${ORDER}`), ORDER)).toBe(false)
   })
 
   test('empty and absent data never match', () => {
@@ -57,14 +60,35 @@ describe('dataCarriesOrderId', () => {
   })
 
   /**
-   * Documents a real limitation rather than asserting it is fine: an id that is
-   * itself valid hex can appear inside an unrelated longer hex string. With 8
-   * random bytes the odds are negligible, and a false positive still cannot
-   * unlock anything on its own - the transaction must also be in our treasury
-   * for at least the quoted amount.
+   * This was once asserted as an acceptable limitation, on the reasoning that a
+   * false positive "cannot unlock anything on its own - the transaction must
+   * also be in our treasury for at least the quoted amount". That reasoning was
+   * wrong, and it cost four shots per payment.
+   *
+   * The attack needs no collision and no luck. A Nimiq basic transaction's data
+   * field holds 64 bytes; an order id is 16 characters. Mint four orders, put
+   * all four ids in one field, and pay ONE shot's worth into the treasury. The
+   * transaction genuinely is in the treasury for the quoted amount, so the
+   * value check passes - and it passed per order, against tx.value, never
+   * cumulatively. All four settled.
    */
-  test('known limitation: id can appear inside unrelated hex', () => {
-    expect(dataCarriesOrderId(`dead${ORDER}beef`, ORDER)).toBe(true)
+  test('one transaction cannot name more than one order', () => {
+    expect(dataCarriesOrderId(`dead${ORDER}beef`, ORDER)).toBe(false)
+
+    const a = ORDER
+    const b = 'a1b2c3d4e5f60718'
+    const c = '0f1e2d3c4b5a6978'
+    const d = 'feedfacecafebeef'
+    const stuffed = a + b + c + d // 64 chars: exactly what the field holds
+
+    for (const id of [a, b, c, d]) {
+      expect(dataCarriesOrderId(stuffed, id)).toBe(false)
+      expect(dataCarriesOrderId(hex(stuffed), id)).toBe(false)
+    }
+  })
+
+  test('a trailing-null-padded field still matches the id it names', () => {
+    expect(dataCarriesOrderId(hex(ORDER + '\0\0'), ORDER)).toBe(true)
   })
 })
 
