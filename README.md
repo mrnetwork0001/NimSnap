@@ -281,7 +281,9 @@ The trust boundary is `POST /api/generate`. A client that lies gets nothing.
 | --- | --- |
 | "I paid" without paying | Server reads the chain itself; the client's claim is ignored |
 | Redirect payment to own address | Server re-reads the treasury from its own env, not the request |
-| Replay one payment for many shots | Order ids are server-minted and burned via `consumedAt` |
+| Replay one payment for many shots | Three independent locks: the data field must **equal** one order id, the settled tx hash is claimed atomically on every rail, and `consumedAt` burns the credit |
+| Name several orders in one transaction | `dataCarriesOrderId` matches the whole field, so 64 bytes of data cannot carry four 16-character ids |
+| Two concurrent generates on one order | An atomic per-order lock, with the order re-read under it before the model runs |
 | Guess someone else's paid order | Ids are 8 random bytes, not sequential |
 | Underpay after a price move | Amount checked against the server-issued quote, ±5% tolerance |
 | Pay the wrong token | USDT verification requires a `Transfer` log from the real USDT contract |
@@ -342,9 +344,61 @@ GET  /results/<key>.jpg                -> 200 image/jpeg, served after boot
 GET  /results/../../package.json       -> 404
 ```
 
-**94 tests**, including a regression test for the expiry ordering that once let a
-late payment be rejected after the money had left the wallet. Production build:
-112 kB first load on the studio route.
+**110 tests**, including regression guards for every issue in the audit below -
+the expiry ordering that once let a late payment be rejected after the money had
+left the wallet, the substring matcher that let one payment buy four shots, the
+generation race, the Android media-picker wildcard, and the text contrast that
+sat below WCAG AA. Production build: 115 kB first load on the studio route.
+
+## Audit
+
+A five-dimension audit was run over this repo - payment security, correctness,
+Nimiq integration, mobile UX and submission readiness - with every finding then
+passed to a separate adversarial reviewer instructed to refute it. Thirty-two
+findings survived; three were refuted and dropped. One that survived verification
+was still wrong (see the last bullet). What follows is what it found and what
+changed, because a security claim is worth nothing without the record of what it
+took to make it true.
+
+**Fixed: one payment bought four shots.** `dataCarriesOrderId` tested whether the
+transaction's data field *contained* an order id. A Nimiq basic transaction
+carries 64 bytes and an order id is 16 characters, so four ids fit - and each was
+checked against `tx.value` individually, never cumulatively. Minting four orders,
+concatenating the ids into one memo and paying a single shot's worth settled all
+four. The matcher now demands equality, and the transaction-hash claim that binds
+a payment to exactly one order - previously gated to the USDT rail on the
+mistaken reasoning that NIM "could only ever match one order" - now runs on every
+rail. Two independent locks, either of which closes it.
+
+**Fixed: two concurrent requests, one payment, two images.** `consumedAt` was read
+at the top of `/api/generate` and not written until the model returned, about a
+minute later. Both requests cleared the read before either wrote. Binding the
+transaction cannot help here, because it is the same transaction and re-claiming
+by the same order has to succeed so retries stay free. There is now an atomic
+per-order lock, and the order is re-read under it before the model runs, because
+the copy loaded at the top of the handler may already be stale.
+
+**Fixed: body text failed WCAG AA.** `ink-muted` and `ink-soft` measured 3.54:1
+and 2.38:1 against the page background, below the 4.5:1 that body text needs, and
+between them they carry most of the copy. Both were darkened until they pass on
+white and on haze, keeping the hue and the three-step hierarchy. Pinned in
+`test/contrast.test.ts` so they cannot be lightened back by eye.
+
+**Fixed: pinch-zoom was disabled app-wide.** The root viewport set
+`maximumScale: 1` and `userScalable: false`. There is not a single text input in
+the app, so the usual justification did not apply, and the thing a user most
+wants to magnify is the photo they just paid for.
+
+**Fixed: `npm run lint` could not run on a clean clone.** The script was
+advertised in this README with no ESLint config tracked, so it dropped into an
+interactive setup prompt. A config is now committed; the tree is clean.
+
+**Not a bug, recorded so it is not "fixed" later.** The audit reported that the
+Nimiq indexer rejects the compact address form and requires the spaced one. It
+does not. The test behind that claim used a 38-character string; a Nimiq address
+is 36 unspaced. Both forms return 200 for the real treasury, verified directly.
+
+---
 
 ## Known gaps
 
@@ -370,13 +424,36 @@ Stated plainly rather than left to be discovered.
   unresolvable the model must guess, and a guess is a plausible reconstruction,
   not the person. Uploads are downscaled to 1280px, so this is not upscaling.
 
+Carried over from the audit, unfixed and stated rather than hidden:
+
+- **Both rails settle at zero confirmations.** `confirmations` is parsed and then
+  never compared to a threshold, so a transaction settles the moment the indexer
+  reports it. Nobody chooses which blocks reorg, and a shot costs ten cents, so
+  this buys an attacker nothing worth the effort - but it is not depth-checked.
+- **The USDT rail has no time binding.** `verifyUsdtPayment` never reads the
+  receipt's block timestamp, so a transfer from any point in history verifies the
+  same as a fresh one. The only thing stopping replay is the tx-hash claim, and
+  on the in-memory store that map is empty after every restart. No USDT treasury
+  is configured, so the rail is off - but it must not be switched on without
+  Upstash and a `block.timestamp >= order.createdAt` check.
+- **One unauthenticated indexer is the only settlement oracle for NIM.** If
+  api.nimiq.watch is wrong or unreachable, settlement is wrong or unavailable.
+  There is no second source and no signature check.
+- **Errors render below the fold on a phone.** Nothing scrolls or moves focus to
+  the alert, so a failure can look like the overlay simply vanishing.
+- **`lib/client/pay.ts` has no test coverage** - the entire Nimiq Pay integration
+  surface is exercised by hand, not by the suite. Neither does `/api/generate`,
+  which this README calls the trust boundary; its behaviour is covered only
+  indirectly through `lib/`.
+
 ## Scripts
 
 ```bash
+npm test           # 110 tests, ~400ms - the fastest way to see what is guarded
 npm run dev        # dev server
 npm run build      # production build
 npm start          # serve the production build
-npm run lint       # eslint
+npm run lint       # eslint (next/core-web-vitals)
 npm run typecheck  # tsc --noEmit
 ```
 
