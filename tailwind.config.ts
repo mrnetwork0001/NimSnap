@@ -6,10 +6,16 @@ const config: Config = {
     extend: {
       colors: {
         // Deep navy ink and its muted steps.
+        //
+        // `muted` and `soft` were #74819A and #94A0B5, which measure 3.54:1 and
+        // 2.38:1 against the haze page background - both below the 4.5:1 WCAG AA
+        // needs for body text, and between them they carry most of the copy in
+        // the app. Darkened until they pass on white AND on haze, keeping the
+        // hue and the three-step hierarchy intact.
         ink: {
-          DEFAULT: '#17213D',
-          muted: '#74819A',
-          soft: '#94A0B5',
+          DEFAULT: '#17213D', // 14.33:1 on haze
+          muted: '#4F5D7A', //  5.95:1 on haze
+          soft: '#5F6F89', //  4.59:1 on haze
         },
         // Primary indigo ramp, taken from the reference button gradient.
         brand: {
