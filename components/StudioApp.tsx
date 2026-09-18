@@ -287,7 +287,17 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
     const controller = new AbortController()
     abortRef.current = controller
     // A hung upstream must not freeze the overlay forever with no way out.
-    const timeout = setTimeout(() => controller.abort(), GENERATE_TIMEOUT_MS)
+    //
+    // Armed only once payment has landed, NOT when the user taps Generate. The
+    // payment step now listens to this same signal so "Stop waiting" can free a
+    // wedged wallet - and paying legitimately takes minutes, because the Hub
+    // popup may need unlocking and an account chosen. Starting the clock here
+    // would abort somebody mid-approval and abandon a payment that was about to
+    // succeed. This budget is for the server call, so it starts with it.
+    let timeout: ReturnType<typeof setTimeout> | undefined
+    const armGenerateTimeout = () => {
+      timeout ??= setTimeout(() => controller.abort(), GENERATE_TIMEOUT_MS)
+    }
 
     try {
       // Reuse a paid-but-unredeemed order rather than charging twice for a retry.
@@ -330,9 +340,9 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
         setQuote(liveQuote)
 
         if (rail === 'nim') {
-          await payWithNim(orderId, liveQuote)
+          await payWithNim(orderId, liveQuote, controller.signal)
         } else if (rail === 'hub') {
-          const paymentResult = await payWithHub(orderId, liveQuote)
+          const paymentResult = await payWithHub(orderId, liveQuote, controller.signal)
           txHash = paymentResult.txHash
         } else if (rail === 'usdt') {
           const paymentResult = await payWithUsdt(liveQuote)
@@ -357,6 +367,9 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
       }
 
       setPaid(true)
+      // Payment is done (or was already credited), so the server-call budget
+      // starts now rather than covering the user's time in their wallet.
+      armGenerateTimeout()
 
       const genRes = await fetch('/api/generate', {
         method: 'POST',
@@ -402,7 +415,7 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
       // Surface any surviving credit so it can be resumed from a clean state.
       if (paidOrderRef.current) setPendingCredit(paidOrderRef.current)
     } finally {
-      clearTimeout(timeout)
+      if (timeout) clearTimeout(timeout)
       abortRef.current = null
     }
   }, [file, presetId, rail])
@@ -518,6 +531,7 @@ export default function StudioApp({ examples = [] }: { examples?: ExamplePair[] 
           presetName={preset?.name ?? 'shot'}
           paid={paid}
           onCancel={cancelGeneration}
+          wallet={rail === 'hub' ? 'the Nimiq Hub' : rail === 'nim' ? 'Nimiq Pay' : null}
         />
       )}
     </>

@@ -9,6 +9,8 @@ interface Props {
   paid: boolean
   /** Abort the attempt. The payment survives, so this is never a forfeit. */
   onCancel?: () => void
+  /** Which wallet we are waiting on, so a stall can name the right window. */
+  wallet?: 'Nimiq Pay' | 'the Nimiq Hub' | null
 }
 
 const STEPS = ['Confirming your payment', 'Reading the photo', 'Applying the style', 'Finishing in HD']
@@ -21,7 +23,7 @@ const STEPS = ['Confirming your payment', 'Reading the photo', 'Applying the sty
  * stages of the pipeline. It stalls on the final step rather than completing
  * early, because a bar that hits 100% and then waits reads as broken.
  */
-export default function GeneratingOverlay({ presetName, paid, onCancel }: Props) {
+export default function GeneratingOverlay({ presetName, paid, onCancel, wallet }: Props) {
   const [step, setStep] = useState(0)
   /**
    * The escape hatch stays hidden at first. Offering it immediately invites
@@ -29,11 +31,27 @@ export default function GeneratingOverlay({ presetName, paid, onCancel }: Props)
    * once the wait has stopped feeling normal.
    */
   const [showCancel, setShowCancel] = useState(false)
+  /**
+   * A wallet that has not answered after half a minute is usually wedged rather
+   * than slow - the Hub stalling on "Requesting balances" is the observed case.
+   * Naming the window and saying plainly that nothing has been charged is the
+   * difference between a user retrying and a user assuming we took their money.
+   */
+  const [walletStalled, setWalletStalled] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => setShowCancel(true), 12_000)
     return () => clearTimeout(t)
   }, [])
+
+  useEffect(() => {
+    if (paid) {
+      setWalletStalled(false)
+      return
+    }
+    const t = setTimeout(() => setWalletStalled(true), 30_000)
+    return () => clearTimeout(t)
+  }, [paid])
 
   useEffect(() => {
     if (!paid) {
@@ -92,6 +110,13 @@ export default function GeneratingOverlay({ presetName, paid, onCancel }: Props)
           )
         })}
       </ol>
+
+      {walletStalled && !paid && (
+        <p className="max-w-[19rem] text-center text-xs leading-relaxed text-ink-muted">
+          Still waiting on {wallet ?? 'your wallet'}. If that window is stuck, close it and
+          try again - nothing has been charged unless you approved a payment.
+        </p>
+      )}
 
       {onCancel && (
         <div className={`transition-opacity duration-500 ${showCancel ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>

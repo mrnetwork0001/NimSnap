@@ -36,10 +36,66 @@ export class PaymentError extends Error {
   constructor(
     message: string,
     readonly cancelled = false,
+    /** The wallet or Hub never answered, so we stopped waiting on it. */
+    readonly timedOut = false,
   ) {
     super(message)
     this.name = 'PaymentError'
   }
+}
+
+/**
+ * How long to wait on a wallet before giving the user a way out.
+ *
+ * Generous on purpose. Paying through the Hub legitimately takes minutes - the
+ * popup may need the wallet unlocked, an account chosen and the amount
+ * confirmed - so a short timeout would abandon payments that were about to
+ * succeed. This is a backstop against a genuinely wedged host (the Hub stalling
+ * on "Requesting balances" is the observed case), not a patience limit.
+ */
+export const PAYMENT_TIMEOUT_MS = 4 * 60 * 1000
+
+/**
+ * Stop waiting on a wallet promise when the user gives up or the host wedges.
+ *
+ * Neither the Mini App provider nor the Hub offers a cancel, so the underlying
+ * promise is left to settle on its own - we simply stop awaiting it. That is
+ * why the resulting message never claims the payment did not happen: the popup
+ * may still be open and the user may still approve it. It says what is true
+ * either way, and the order stays redeemable so a late payment is picked up on
+ * the next attempt rather than lost.
+ */
+function boundedWait<T>(work: Promise<T>, signal: AbortSignal | undefined, host: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let settled = false
+    const finish = (fn: () => void) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
+      fn()
+    }
+    const giveUp = (why: string) =>
+      finish(() =>
+        reject(
+          new PaymentError(
+            `${why} If you never approved the payment, nothing has left your wallet. ` +
+              'If you did approve it, try again in a moment - it will settle and you will not be charged twice.',
+            false,
+            true,
+          ),
+        ),
+      )
+    const onAbort = () => giveUp(`${host} did not respond, so we stopped waiting.`)
+    const timer = setTimeout(() => giveUp(`${host} stopped responding.`), PAYMENT_TIMEOUT_MS)
+
+    if (signal?.aborted) return onAbort()
+    signal?.addEventListener('abort', onAbort)
+    work.then(
+      (v) => finish(() => resolve(v)),
+      (e) => finish(() => reject(e)),
+    )
+  })
 }
 
 /**
@@ -96,7 +152,11 @@ function isErrorResponse(value: unknown): boolean {
  * transaction rather than a hash, so an onchain memo is the only reliable way
  * to tie this payment back to this order.
  */
-export async function payWithNim(orderId: string, quote: Quote): Promise<PayResult> {
+export async function payWithNim(
+  orderId: string,
+  quote: Quote,
+  signal?: AbortSignal,
+): Promise<PayResult> {
   const provider = await getNimiqProvider()
   if (!provider) {
     throw new PaymentError('Open NimSnap inside Nimiq Pay to pay with NIM.')
@@ -112,12 +172,19 @@ export async function payWithNim(orderId: string, quote: Quote): Promise<PayResu
 
   let result: unknown
   try {
-    result = await provider.sendBasicTransactionWithData({
-      recipient: NIM_TREASURY,
-      value: quote.lunas,
-      data: orderId,
-    })
+    result = await boundedWait(
+      Promise.resolve(
+        provider.sendBasicTransactionWithData({
+          recipient: NIM_TREASURY,
+          value: quote.lunas,
+          data: orderId,
+        }),
+      ),
+      signal,
+      'Nimiq Pay',
+    )
   } catch (err) {
+    if (err instanceof PaymentError) throw err
     throw asError(err, 'Nimiq Pay could not complete the payment.')
   }
   if (isErrorResponse(result)) throw asError(result, 'Payment was not completed.')
@@ -144,7 +211,11 @@ export async function payWithNim(orderId: string, quote: Quote): Promise<PayResu
  * for instance) spends that activation and the popup is blocked. The caller is
  * responsible for having the order id already in hand.
  */
-export async function payWithHub(orderId: string, quote: Quote): Promise<PayResult> {
+export async function payWithHub(
+  orderId: string,
+  quote: Quote,
+  signal?: AbortSignal,
+): Promise<PayResult> {
   if (!NIM_TREASURY) {
     throw new PaymentError('This deployment has no NIM treasury configured.')
   }
@@ -158,18 +229,23 @@ export async function payWithHub(orderId: string, quote: Quote): Promise<PayResu
   const hub = new HubApi(HUB_ENDPOINT)
 
   try {
-    const signed = await hub.checkout({
-      appName: 'NimSnap',
-      recipient: NIM_TREASURY,
-      value: quote.lunas,
-      // Encoded explicitly rather than passed as a string, so there is no
-      // ambiguity about whether the Hub treats it as text or as hex.
-      extraData: new TextEncoder().encode(orderId),
-    })
+    const signed = await boundedWait(
+      hub.checkout({
+        appName: 'NimSnap',
+        recipient: NIM_TREASURY,
+        value: quote.lunas,
+        // Encoded explicitly rather than passed as a string, so there is no
+        // ambiguity about whether the Hub treats it as text or as hex.
+        extraData: new TextEncoder().encode(orderId),
+      }),
+      signal,
+      'The Nimiq Hub',
+    )
 
     const hash = (signed as { hash?: string })?.hash
     return { rail: 'hub', txHash: hash, raw: signed }
   } catch (err) {
+    if (err instanceof PaymentError) throw err
     throw asError(err, 'The payment was not completed.')
   }
 }
