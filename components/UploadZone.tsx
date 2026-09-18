@@ -18,7 +18,27 @@ interface Props {
  * `capture="user"` rather than "environment": three of the four presets are
  * portrait styles, so the front camera is the right default. Either way the user
  * can flip it inside the camera UI.
+ *
+ * The library input deliberately lists concrete types instead of `image/*`.
+ * That wildcard is what Android routes to its *media* picker, which offers the
+ * camera alongside the gallery - and MIUI resolves it straight to the camera,
+ * so "Choose from library" opened the viewfinder on every Redmi and Xiaomi
+ * device. Naming the types sends the intent to the documents picker instead,
+ * which only ever shows files. iOS was never affected because it shows its own
+ * action sheet either way, which is why this only ever reproduced on Android.
+ * Extensions are listed next to the MIME types because some Android pickers
+ * match on the filename and hand over a blank or generic type.
  */
+
+/**
+ * Concrete image types for the library picker. Keep this in sync with the
+ * formats decodeToJpeg() accepts, and do NOT collapse it back to `image/*`.
+ */
+const LIBRARY_TYPES = [
+  'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif',
+  'image/avif', 'image/gif', 'image/bmp',
+  '.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.avif', '.gif', '.bmp',
+].join(',')
 export default function UploadZone({ previewUrl, onFile, disabled }: Props) {
   const pickerRef = useRef<HTMLInputElement>(null)
   const cameraRef = useRef<HTMLInputElement>(null)
@@ -47,7 +67,7 @@ export default function UploadZone({ previewUrl, onFile, disabled }: Props) {
       }}
       className={`card overflow-hidden transition ${dragOver ? 'ring-2 ring-brand-400' : ''}`}
     >
-      <input ref={pickerRef} type="file" accept="image/*" className="sr-only" onChange={(e) => take(e.target.files, e.target)} />
+      <input ref={pickerRef} type="file" accept={LIBRARY_TYPES} className="sr-only" onChange={(e) => take(e.target.files, e.target)} />
       <input ref={cameraRef} type="file" accept="image/*" capture="user" className="sr-only" onChange={(e) => take(e.target.files, e.target)} />
 
       {previewUrl ? (
