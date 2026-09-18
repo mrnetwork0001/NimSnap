@@ -27,6 +27,28 @@ echo "==> at $(run git log --oneline -1)"
 # up later as a confusing webpack error.
 run npm ci
 
+# Verify the build toolchain actually landed. A partial or interrupted install
+# can leave node_modules without devDependencies while still exiting 0, and the
+# failure that follows is deeply misleading: without `typescript` present, Next
+# silently stops reading tsconfig path aliases, so every `@/lib/...` import
+# fails to resolve and the build reports a dozen module-not-found errors that
+# look like missing source files rather than a missing compiler.
+missing=""
+for m in typescript tailwindcss postcss autoprefixer; do
+  [ -d "$APP_DIR/node_modules/$m" ] || missing="$missing $m"
+done
+if [ -n "$missing" ]; then
+  echo "==> build dependencies missing after npm ci:$missing"
+  echo "    retrying with an explicit dev install"
+  run npm install --include=dev --no-audit --no-fund
+  for m in typescript tailwindcss postcss autoprefixer; do
+    if [ ! -d "$APP_DIR/node_modules/$m" ]; then
+      echo "==> still missing $m - aborting before the build can fail confusingly"
+      exit 1
+    fi
+  done
+fi
+
 # Cap the heap so a build can never crowd the other services sharing this box.
 run env NODE_OPTIONS=--max-old-space-size=1536 npm run build
 
